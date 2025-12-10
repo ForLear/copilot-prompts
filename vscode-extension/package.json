@@ -1,0 +1,174 @@
+{
+  "name": "copilot-prompts-manager",
+  "displayName": "Copilot Prompts Manager",
+  "description": "可视化管理 GitHub Copilot Prompts 和 Agents 配置",
+  "version": "1.0.0",
+  "publisher": "forlear",
+  "icon": "media/icon.png",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other",
+    "Machine Learning"
+  ],
+  "keywords": [
+    "copilot",
+    "prompts",
+    "agents",
+    "ai",
+    "github"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "copilot-prompts",
+          "title": "Copilot Prompts",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "copilot-prompts": [
+        {
+          "id": "copilotPromptsTree",
+          "name": "可用配置",
+          "icon": "media/icon.svg",
+          "contextualTitle": "Copilot Prompts"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "copilotPrompts.applyConfig",
+        "title": "应用选中的配置",
+        "category": "Copilot Prompts",
+        "icon": "$(check)"
+      },
+      {
+        "command": "copilotPrompts.refresh",
+        "title": "刷新",
+        "category": "Copilot Prompts",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "copilotPrompts.selectAll",
+        "title": "全选",
+        "category": "Copilot Prompts",
+        "icon": "$(check-all)"
+      },
+      {
+        "command": "copilotPrompts.clearAll",
+        "title": "清空选择",
+        "category": "Copilot Prompts",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "copilotPrompts.toggleItem",
+        "title": "切换选择",
+        "category": "Copilot Prompts"
+      },
+      {
+        "command": "copilotPrompts.openManager",
+        "title": "打开配置管理器",
+        "category": "Copilot Prompts",
+        "icon": "$(settings-gear)"
+      },
+      {
+        "command": "copilotPrompts.viewCurrent",
+        "title": "查看当前配置",
+        "category": "Copilot Prompts",
+        "icon": "$(file-text)"
+      },
+      {
+        "command": "copilotPrompts.loadTemplate",
+        "title": "加载配置模板",
+        "category": "Copilot Prompts",
+        "icon": "$(folder-opened)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "copilotPrompts.applyConfig",
+          "when": "view == copilotPromptsTree",
+          "group": "navigation@1"
+        },
+        {
+          "command": "copilotPrompts.refresh",
+          "when": "view == copilotPromptsTree",
+          "group": "navigation@2"
+        },
+        {
+          "command": "copilotPrompts.selectAll",
+          "when": "view == copilotPromptsTree",
+          "group": "1_modify@1"
+        },
+        {
+          "command": "copilotPrompts.clearAll",
+          "when": "view == copilotPromptsTree",
+          "group": "1_modify@2"
+        },
+        {
+          "command": "copilotPrompts.loadTemplate",
+          "when": "view == copilotPromptsTree",
+          "group": "2_template@1"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "copilotPrompts.toggleItem",
+          "when": "view == copilotPromptsTree && viewItem == prompt",
+          "group": "inline"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Copilot Prompts Manager",
+      "properties": {
+        "copilotPrompts.promptsPath": {
+          "type": "string",
+          "default": "../copilot-prompts",
+          "description": "Prompts 仓库的相对路径"
+        },
+        "copilotPrompts.autoApply": {
+          "type": "boolean",
+          "default": false,
+          "description": "选择后自动应用配置"
+        },
+        "copilotPrompts.showNotifications": {
+          "type": "boolean",
+          "default": true,
+          "description": "显示操作通知"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile",
+    "lint": "eslint src --ext ts",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^18.x",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "eslint": "^8.54.0",
+    "typescript": "^5.3.2",
+    "@vscode/vsce": "^2.22.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ForLear/copilot-prompts.git"
+  },
+  "license": "MIT"
+}
