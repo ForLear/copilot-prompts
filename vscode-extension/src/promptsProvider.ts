@@ -4,8 +4,19 @@ import { ConfigManager } from './configManager';
 export class PromptsProvider implements vscode.TreeDataProvider<PromptItem> {
     private _onDidChangeTreeData: vscode.EventEmitter<PromptItem | undefined | null | void> = new vscode.EventEmitter<PromptItem | undefined | null | void>();
     readonly onDidChangeTreeData: vscode.Event<PromptItem | undefined | null | void> = this._onDidChangeTreeData.event;
+    private searchText: string = '';
 
     constructor(private configManager: ConfigManager) {}
+
+    setSearchText(text: string): void {
+        this.searchText = text.toLowerCase();
+        this.refresh();
+    }
+
+    clearSearch(): void {
+        this.searchText = '';
+        this.refresh();
+    }
 
     refresh(): void {
         this._onDidChangeTreeData.fire();
@@ -37,6 +48,15 @@ export class PromptsProvider implements vscode.TreeDataProvider<PromptItem> {
             return [];
         }
 
+        // 应用搜索过滤
+        if (this.searchText) {
+            filtered = filtered.filter(p => 
+                p.title.toLowerCase().includes(this.searchText) ||
+                p.description.toLowerCase().includes(this.searchText) ||
+                p.tags.some((tag: string) => tag.toLowerCase().includes(this.searchText))
+            );
+        }
+
         return filtered.map(p => {
             const item = new PromptItem(
                 p.id,
@@ -52,21 +72,8 @@ export class PromptsProvider implements vscode.TreeDataProvider<PromptItem> {
                 ? vscode.TreeItemCheckboxState.Checked 
                 : vscode.TreeItemCheckboxState.Unchecked;
             
-            // 设置图标
-            item.iconPath = new vscode.ThemeIcon(
-                isSelected ? 'check' : 'circle-outline',
-                isSelected ? new vscode.ThemeColor('charts.green') : undefined
-            );
-
             // 设置tooltip
             item.tooltip = `${p.description}\n\n路径: ${p.path}\n标签: ${p.tags.join(', ')}`;
-
-            // 设置命令
-            item.command = {
-                command: 'copilotPrompts.toggleItem',
-                title: '切换选择',
-                arguments: [item]
-            };
 
             return item;
         });

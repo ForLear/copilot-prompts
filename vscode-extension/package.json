@@ -1,8 +1,8 @@
 {
   "name": "copilot-prompts-manager",
   "displayName": "Copilot Prompts Manager",
-  "description": "可视化管理 GitHub Copilot Prompts 和 Agents 配置",
-  "version": "1.0.0",
+  "description": "管理和切换 GitHub Copilot 的 Prompts 和 Agents 配置",
+  "version": "1.2.0",
   "publisher": "forlear",
   "icon": "media/icon.png",
   "engines": {
@@ -51,10 +51,10 @@
         "icon": "$(check)"
       },
       {
-        "command": "copilotPrompts.applyGlobal",
-        "title": "应用选中的配置 (全局)",
+        "command": "copilotPrompts.checkIssues",
+        "title": "检查配置问题",
         "category": "Copilot Prompts",
-        "icon": "$(check)"
+        "icon": "$(warning)"
       },
       {
         "command": "copilotPrompts.refresh",
@@ -96,24 +96,41 @@
         "title": "加载配置模板",
         "category": "Copilot Prompts",
         "icon": "$(folder-opened)"
+      },
+      {
+        "command": "copilotPrompts.search",
+        "title": "搜索 Prompts",
+        "category": "Copilot Prompts",
+        "icon": "$(search)"
+      },
+      {
+        "command": "copilotPrompts.showActive",
+        "title": "显示当前生效的配置",
+        "category": "Copilot Prompts",
+        "icon": "$(info)"
       }
     ],
     "menus": {
       "view/title": [
         {
-          "command": "copilotPrompts.applyConfig",
+          "command": "copilotPrompts.checkIssues",
           "when": "view == copilotPromptsTree",
           "group": "navigation@1"
         },
         {
-          "command": "copilotPrompts.applyGlobal",
+          "command": "copilotPrompts.search",
           "when": "view == copilotPromptsTree",
-          "group": "navigation@2"
+          "group": "navigation@3"
         },
         {
           "command": "copilotPrompts.refresh",
           "when": "view == copilotPromptsTree",
-          "group": "navigation@2"
+          "group": "navigation@4"
+        },
+        {
+          "command": "copilotPrompts.showActive",
+          "when": "view == copilotPromptsTree",
+          "group": "1_info@1"
         },
         {
           "command": "copilotPrompts.selectAll",

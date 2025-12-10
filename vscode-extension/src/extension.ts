@@ -1,18 +1,44 @@
 import * as vscode from 'vscode';
 import { PromptsProvider, PromptItem } from './promptsProvider';
 import { ConfigManager } from './configManager';
+import { ConfigValidator } from './configValidator';
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('Copilot Prompts Manager 已激活');
 
     const configManager = new ConfigManager(context);
     const promptsProvider = new PromptsProvider(configManager);
+    const configValidator = new ConfigValidator();
 
     // 注册 TreeView
     const treeView = vscode.window.createTreeView('copilotPromptsTree', {
         treeDataProvider: promptsProvider,
         showCollapseAll: true,
         canSelectMany: false
+    });
+
+    // 监听 checkbox 变化事件，立即生效
+    treeView.onDidChangeCheckboxState(async (event) => {
+        for (const [item, state] of event.items) {
+            const promptItem = item as PromptItem;
+            if (promptItem.id && promptItem.contextValue === 'prompt') {
+                const isChecked = state === vscode.TreeItemCheckboxState.Checked;
+                const currentlySelected = configManager.getSelectedPrompts().includes(promptItem.id);
+                
+                // 只在状态变化时处理
+                if (isChecked !== currentlySelected) {
+                    configManager.togglePrompt(promptItem.id);
+                }
+            }
+        }
+        
+        // 立即应用配置到当前项目
+        await configManager.applyConfig();
+        promptsProvider.refresh();
+        updateStatusBar();
+        
+        const count = configManager.getSelectedPrompts().length;
+        vscode.window.showInformationMessage(`✅ 配置已自动应用到当前项目 (${count} 个)`);
     });
 
     // 创建状态栏
@@ -27,19 +53,26 @@ export function activate(context: vscode.ExtensionContext) {
     const updateStatusBar = () => {
         const selected = configManager.getSelectedPrompts();
         const count = selected.length;
+        const allPrompts = configManager.getAllPrompts();
+        const activePrompts = allPrompts.filter(p => selected.includes(p.id));
+        const tooltip = activePrompts.length > 0 
+            ? `当前生效的配置:\n${activePrompts.map(p => `• ${p.title}`).join('\n')}`
+            : '未应用任何配置';
+        
         statusBarItem.text = `$(file-code) Copilot: ${count}`;
+        statusBarItem.tooltip = tooltip;
         statusBarItem.tooltip = `已选择 ${count} 个配置\n点击查看详情`;
         statusBarItem.show();
     };
     updateStatusBar();
 
-    // 应用配置
+    // 应用配置到当前项目
     const applyConfig = vscode.commands.registerCommand('copilotPrompts.applyConfig', async () => {
         try {
             const result = await configManager.applyConfig();
             if (result.success) {
                 vscode.window.showInformationMessage(
-                    `✅ 配置已应用！共 ${result.count} 个 Prompt`,
+                    `✅ 配置已应用到当前项目！共 ${result.count} 个 Prompt`,
                     '查看'
                 ).then(selection => {
                     if (selection === '查看') {
@@ -53,28 +86,16 @@ export function activate(context: vscode.ExtensionContext) {
         }
     });
 
-    // 应用到全局
+    // 检查配置问题
+    const checkIssues = vscode.commands.registerCommand('copilotPrompts.checkIssues', async () => {
+        const issues = await configValidator.checkAll();
+        await configValidator.showResults(issues);
+    });
+
+    // 应用到全局（移除，改为只应用到当前项目）
     const applyGlobal = vscode.commands.registerCommand('copilotPrompts.applyGlobal', async () => {
-        try {
-            const result = await configManager.applyGlobal();
-            if (result.success) {
-                const homeDir = process.env.HOME || process.env.USERPROFILE || '~';
-                vscode.window.showInformationMessage(
-                    `✅ 全局配置已应用！共 ${result.count} 个 Prompt`,
-                    '查看位置',
-                    '重新加载'
-                ).then(selection => {
-                    if (selection === '查看位置') {
-                        vscode.window.showInformationMessage(`配置位置: ${homeDir}/.vscode/copilot-instructions.md`);
-                    } else if (selection === '重新加载') {
-                        vscode.commands.executeCommand('workbench.action.reloadWindow');
-                    }
-                });
-                updateStatusBar();
-            }
-        } catch (error) {
-            vscode.window.showErrorMessage(`应用全局配置失败: ${error}`);
-        }
+        // 保留命令用于向后兼容，实际调用 applyConfig
+        vscode.commands.executeCommand('copilotPrompts.applyConfig');
     });
 
     // 刷新
@@ -85,33 +106,72 @@ export function activate(context: vscode.ExtensionContext) {
     });
 
     // 全选
-    const selectAll = vscode.commands.registerCommand('copilotPrompts.selectAll', () => {
+    const selectAll = vscode.commands.registerCommand('copilotPrompts.selectAll', async () => {
         configManager.selectAll();
+        await configManager.applyConfig();
         promptsProvider.refresh();
         updateStatusBar();
-        vscode.window.showInformationMessage('✅ 已全选所有配置');
+        const count = configManager.getSelectedPrompts().length;
+        vscode.window.showInformationMessage(`✅ 已全选并应用到当前项目 (${count} 个)`);
     });
 
     // 清空
-    const clearAll = vscode.commands.registerCommand('copilotPrompts.clearAll', () => {
+    const clearAll = vscode.commands.registerCommand('copilotPrompts.clearAll', async () => {
         configManager.clearAll();
+        await configManager.applyConfig();
         promptsProvider.refresh();
         updateStatusBar();
-        vscode.window.showInformationMessage('✅ 已清空选择');
+        vscode.window.showInformationMessage('✅ 已清空并应用配置');
     });
 
-    // 切换单项
+    // 切换单项（已弃用，由 checkbox 事件替代）
     const toggleItem = vscode.commands.registerCommand('copilotPrompts.toggleItem', (item: PromptItem) => {
-        if (item.id) {
-            configManager.togglePrompt(item.id);
-            promptsProvider.refresh();
-            updateStatusBar();
-            
-            const config = vscode.workspace.getConfiguration('copilotPrompts');
-            if (config.get('autoApply')) {
-                vscode.commands.executeCommand('copilotPrompts.applyConfig');
+        // 此命令已由 onDidChangeCheckboxState 事件替代
+        // 保留用于向后兼容
+    });
+
+    // 搜索
+    const search = vscode.commands.registerCommand('copilotPrompts.search', async () => {
+        const searchText = await vscode.window.showInputBox({
+            prompt: '搜索 Prompts 和 Agents',
+            placeHolder: '输入关键词搜索标题、描述或标签...',
+            value: ''
+        });
+        
+        if (searchText !== undefined) {
+            if (searchText.trim()) {
+                promptsProvider.setSearchText(searchText);
+                vscode.window.showInformationMessage(`🔍 搜索: "${searchText}"`);
+            } else {
+                promptsProvider.clearSearch();
+                vscode.window.showInformationMessage('✅ 已清除搜索');
             }
         }
+    });
+
+    // 显示当前生效的配置
+    const showActive = vscode.commands.registerCommand('copilotPrompts.showActive', () => {
+        const selected = configManager.getSelectedPrompts();
+        const allPrompts = configManager.getAllPrompts();
+        const activePrompts = allPrompts.filter(p => selected.includes(p.id));
+        
+        if (activePrompts.length === 0) {
+            vscode.window.showInformationMessage('ℹ️ 当前没有生效的配置');
+            return;
+        }
+
+        const items = activePrompts.map(p => ({
+            label: `$(${p.type === 'agent' ? 'person' : 'file'}) ${p.title}`,
+            description: p.description,
+            detail: `标签: ${p.tags.join(', ')}`
+        }));
+
+        vscode.window.showQuickPick(items, {
+            title: `当前生效的配置 (${activePrompts.length} 个)`,
+            placeHolder: '这些配置正在影响 Copilot 的代码生成...',
+            matchOnDescription: true,
+            matchOnDetail: true
+        });
     });
 
     // 查看当前配置
@@ -208,11 +268,14 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         treeView,
         applyConfig,
+        checkIssues,
         applyGlobal,
         refresh,
         selectAll,
         clearAll,
         toggleItem,
+        search,
+        showActive,
         viewCurrent,
         openManager,
         loadTemplate
