@@ -1,4 +1,6 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
+import * as fs from 'fs';
 import { PromptsProvider, PromptItem } from './promptsProvider';
 import { ConfigManager } from './configManager';
 import { ConfigValidator } from './configValidator';
@@ -15,6 +17,96 @@ export function activate(context: vscode.ExtensionContext) {
     const configManager = new ConfigManager(context, outputChannel);
     const promptsProvider = new PromptsProvider(configManager);
     const configValidator = new ConfigValidator(configManager);
+
+    // 智能识别项目根目录的辅助函数
+    const isProjectRoot = (folderPath: string): boolean => {
+        // 检测项目根目录的标志文件
+        const projectMarkers = [
+            // 前端 & Node.js
+            'package.json',
+            // 跨平台 & 移动端
+            'pubspec.yaml',        // Flutter/Dart
+            'app.json',            // React Native
+            'manifest.json',       // 小程序/Chrome Extension
+            'pages.json',          // uniApp
+            'project.config.json', // 微信小程序
+            // Android
+            'build.gradle',
+            'settings.gradle',
+            'gradle.properties',
+            // iOS
+            'Podfile',
+            'project.pbxproj',
+            // 后端 & 微服务
+            'pom.xml',             // Maven/Java
+            'build.gradle.kts',    // Kotlin DSL (Gradle)
+            'Cargo.toml',          // Rust
+            'go.mod',              // Go
+            'requirements.txt',    // Python
+            'Pipfile',             // Python (pipenv)
+            'pyproject.toml',      // Python (Poetry)
+            'Gemfile',             // Ruby
+            'composer.json',       // PHP
+            // 微服务框架
+            'application.yml',     // Spring Boot
+            'application.yaml',    // Spring Boot
+            'application.properties', // Spring Boot
+            'Dockerfile',          // Docker 容器
+            'docker-compose.yml',  // Docker Compose
+            'docker-compose.yaml', // Docker Compose
+            'k8s.yaml',            // Kubernetes
+            'deployment.yaml',     // Kubernetes
+            'service.yaml',        // Kubernetes Service
+            '.dockerignore',       // Docker
+            // 通用标志
+            '.git',
+            '.gitignore'
+        ];
+        
+        return projectMarkers.some(marker => {
+            const markerPath = path.join(folderPath, marker);
+            return fs.existsSync(markerPath);
+        });
+    };
+
+    // 检查文件夹是否有配置
+    const hasConfig = (folderPath: string): boolean => {
+        const configPath = path.join(folderPath, '.github', 'copilot-instructions.md');
+        const agentsDir = path.join(folderPath, '.github', 'agents');
+        return fs.existsSync(configPath) || fs.existsSync(agentsDir);
+    };
+
+    // 更新右键菜单的上下文变量
+    const updateContextMenuState = (uri?: vscode.Uri) => {
+        if (!uri) {
+            vscode.commands.executeCommand('setContext', 'copilotPrompts.isProjectRoot', false);
+            vscode.commands.executeCommand('setContext', 'copilotPrompts.hasConfig', false);
+            return;
+        }
+
+        const folderPath = uri.fsPath;
+        const isRoot = isProjectRoot(folderPath);
+        const hasConf = hasConfig(folderPath);
+
+        vscode.commands.executeCommand('setContext', 'copilotPrompts.isProjectRoot', isRoot);
+        vscode.commands.executeCommand('setContext', 'copilotPrompts.hasConfig', hasConf);
+    };
+
+    // 监听资源管理器选择变化
+    vscode.window.onDidChangeActiveTextEditor(() => {
+        if (vscode.window.activeTextEditor) {
+            const uri = vscode.window.activeTextEditor.document.uri;
+            const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
+            if (workspaceFolder) {
+                updateContextMenuState(workspaceFolder.uri);
+            }
+        }
+    });
+
+    // 初始化上下文状态
+    if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
+        updateContextMenuState(vscode.workspace.workspaceFolders[0].uri);
+    }
 
     // 启动时自动刷新配置列表
     (async () => {
@@ -248,17 +340,193 @@ export function activate(context: vscode.ExtensionContext) {
             placeHolder: '输入关键词搜索标题、描述或标签...',
             value: ''
         });
-
-        if (searchText !== undefined) {
-            if (searchText.trim()) {
-                promptsProvider.setSearchText(searchText);
-                vscode.window.showInformationMessage(`🔍 搜索: "${searchText}"`);
+        
+        if (searchText) {
+            // 实现搜索功能（简化版）
+            const results = configManager.getAllPrompts().filter(p => 
+                p.title.toLowerCase().includes(searchText.toLowerCase()) ||
+                p.description.toLowerCase().includes(searchText.toLowerCase()) ||
+                p.tags.some(t => t.toLowerCase().includes(searchText.toLowerCase()))
+            );
+            
+            if (results.length > 0) {
+                vscode.window.showInformationMessage(
+                    `找到 ${results.length} 个匹配项:\n${results.map(r => r.title).join('\n')}`
+                );
             } else {
-                promptsProvider.clearSearch();
-                vscode.window.showInformationMessage('✅ 已清除搜索');
+                vscode.window.showInformationMessage('未找到匹配的配置');
             }
         }
     });
+
+    // ===== 资源管理器右键菜单命令 =====
+    
+    // 右键菜单：应用配置到文件夹
+    const applyToFolder = vscode.commands.registerCommand('copilotPrompts.applyToFolder', async (uri: vscode.Uri) => {
+        try {
+            // 查找 URI 对应的工作区文件夹
+            const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
+            
+            if (!workspaceFolder) {
+                vscode.window.showWarningMessage('❌ 无法识别工作区文件夹');
+                return;
+            }
+
+            // 检查是否有选中的配置
+            const selectedPrompts = configManager.getSelectedPrompts();
+            
+            if (selectedPrompts.length === 0) {
+                const action = await vscode.window.showWarningMessage(
+                    '当前未选择任何配置，请先在侧边栏勾选需要的 MTA 智能助手配置',
+                    '打开配置面板'
+                );
+                
+                if (action === '打开配置面板') {
+                    vscode.commands.executeCommand('copilotPromptsTree.focus');
+                }
+                return;
+            }
+
+            // 显示确认对话框
+            const allPrompts = configManager.getAllPrompts();
+            const activePrompts = allPrompts.filter(p => selectedPrompts.includes(p.id));
+            const configList = activePrompts.map(p => `  • ${p.title}`).join('\n');
+            
+            const confirmation = await vscode.window.showInformationMessage(
+                `将以下 MTA 智能助手配置应用到 ${workspaceFolder.name}？`,
+                { 
+                    modal: true, 
+                    detail: `当前选中的配置 (${selectedPrompts.length}):\n${configList}\n\n将创建或更新:\n• .github/copilot-instructions.md\n• .github/agents/ 目录` 
+                },
+                '确认应用',
+                '取消'
+            );
+
+            if (confirmation === '确认应用') {
+                // 应用配置到指定工作区
+                await configManager.applyConfigToWorkspace(workspaceFolder);
+                
+                // 延迟更新上下文状态，确保文件写入完成
+                setTimeout(() => {
+                    updateContextMenuState(uri);
+                }, 100);
+                
+                vscode.window.showInformationMessage(`✅ 已应用 ${selectedPrompts.length} 个 MTA 智能助手配置到 ${workspaceFolder.name}`);
+                outputChannel.appendLine(`✅ 已应用配置到: ${workspaceFolder.name}`);
+                outputChannel.appendLine(`  配置数量: ${selectedPrompts.length}`);
+                outputChannel.appendLine(`  配置列表: ${activePrompts.map(p => p.title).join(', ')}`);
+            }
+        } catch (error) {
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            vscode.window.showErrorMessage(`❌ 应用配置失败: ${errorMsg}`);
+            outputChannel.appendLine(`❌ 应用配置失败: ${errorMsg}`);
+        }
+    });
+
+    // 右键菜单：清除文件夹配置
+    const clearFolderConfig = vscode.commands.registerCommand('copilotPrompts.clearFolderConfig', async (uri: vscode.Uri) => {
+        try {
+            const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
+            
+            if (!workspaceFolder) {
+                vscode.window.showWarningMessage('❌ 无法识别工作区文件夹');
+                return;
+            }
+
+            const confirmation = await vscode.window.showWarningMessage(
+                `确定要清除 ${workspaceFolder.name} 的所有 MTA 智能助手配置吗？`,
+                { 
+                    modal: true, 
+                    detail: '这将删除:\n• .github/copilot-instructions.md\n• .github/agents/ 目录\n\n此操作不可撤销！' 
+                },
+                '确认清空',
+                '取消'
+            );
+
+            if (confirmation === '确认清空') {
+                await configManager.clearProjectConfig(workspaceFolder);
+                
+                // 延迟更新上下文状态，确保文件删除完成
+                setTimeout(() => {
+                    updateContextMenuState(uri);
+                }, 100);
+                
+                vscode.window.showInformationMessage(`✅ 已清除 ${workspaceFolder.name} 的 MTA 智能助手配置`);
+                outputChannel.appendLine(`✅ 已清空项目配置: ${workspaceFolder.name}`);
+            }
+        } catch (error) {
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            vscode.window.showErrorMessage(`❌ 清空配置失败: ${errorMsg}`);
+            outputChannel.appendLine(`❌ 清空配置失败: ${errorMsg}`);
+        }
+    });
+
+    // 右键菜单：查看文件夹配置
+    const viewFolderConfig = vscode.commands.registerCommand('copilotPrompts.viewFolderConfig', async (uri: vscode.Uri) => {
+        try {
+            const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
+            
+            if (!workspaceFolder) {
+                vscode.window.showWarningMessage('❌ 无法识别工作区文件夹');
+                return;
+            }
+
+            const path = require('path');
+            const fs = require('fs');
+            
+            const configPath = path.join(workspaceFolder.uri.fsPath, '.github', 'copilot-instructions.md');
+            const agentsDir = path.join(workspaceFolder.uri.fsPath, '.github', 'agents');
+            
+            const hasConfig = fs.existsSync(configPath);
+            const hasAgents = fs.existsSync(agentsDir);
+            
+            if (!hasConfig && !hasAgents) {
+                vscode.window.showInformationMessage(`📝 ${workspaceFolder.name} 尚未配置 MTA 智能助手`);
+                return;
+            }
+
+            let configInfo = `📁 ${workspaceFolder.name} 的 MTA 智能助手配置:\n\n`;
+            
+            if (hasConfig) {
+                const configContent = fs.readFileSync(configPath, 'utf-8');
+                const lines = configContent.split('\n').length;
+                configInfo += `✅ copilot-instructions.md (${lines} 行)\n`;
+            } else {
+                configInfo += `⚪ copilot-instructions.md (未配置)\n`;
+            }
+            
+            if (hasAgents) {
+                const agents = fs.readdirSync(agentsDir).filter((f: string) => f.endsWith('.agent.md'));
+                configInfo += `✅ agents/ 目录 (${agents.length} 个 agent)\n`;
+                if (agents.length > 0) {
+                    configInfo += agents.map((a: string) => `  • ${a}`).join('\n');
+                }
+            } else {
+                configInfo += `⚪ agents/ 目录 (未配置)\n`;
+            }
+            
+            const action = await vscode.window.showInformationMessage(
+                configInfo,
+                '打开配置文件',
+                '打开 agents 目录',
+                '关闭'
+            );
+
+            if (action === '打开配置文件' && hasConfig) {
+                const doc = await vscode.workspace.openTextDocument(configPath);
+                await vscode.window.showTextDocument(doc);
+            } else if (action === '打开 agents 目录' && hasAgents) {
+                const agentsDirUri = vscode.Uri.file(agentsDir);
+                await vscode.commands.executeCommand('revealInExplorer', agentsDirUri);
+            }
+        } catch (error) {
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            vscode.window.showErrorMessage(`❌ 查看配置失败: ${errorMsg}`);
+            outputChannel.appendLine(`❌ 查看配置失败: ${errorMsg}`);
+        }
+    });
+
+    // ===== 资源管理器右键菜单命令结束 =====
 
     // 显示当前生效的配置
     const showActive = vscode.commands.registerCommand('copilotPrompts.showActive', () => {
@@ -391,7 +659,10 @@ export function activate(context: vscode.ExtensionContext) {
         viewCurrent,
         openManager,
         loadTemplate,
-        selectTarget
+        selectTarget,
+        applyToFolder,
+        clearFolderConfig,
+        viewFolderConfig
     );
 }
 
