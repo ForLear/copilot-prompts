@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import { GitHubClient, GitHubPromptData } from './githubClient';
 
 interface PromptData {
     id: string;
@@ -16,102 +17,70 @@ interface PromptData {
 export class ConfigManager {
     private selectedPrompts: Set<string>;
     private readonly STORAGE_KEY = 'selectedPrompts';
+    private prompts: PromptData[] = [];
+    private githubClient: GitHubClient;
+    private projectDocs: string = '';
+    private isLoading: boolean = false;
 
-    // Prompts 数据
-    private readonly prompts: PromptData[] = [
-        {
-            id: 'vitasage-agent',
-            type: 'agent',
-            category: 'agents',
-            title: 'VitaSage Agent',
-            description: 'VitaSage 工业配方管理系统专用',
-            path: 'agents/vitasage.agent.md',
-            tags: ['vue3', 'typescript', 'element-plus', 'logicflow'],
-            default: true
-        },
-        {
-            id: 'vue3-agent',
-            type: 'agent',
-            category: 'agents',
-            title: 'Vue 3 Agent',
-            description: 'Vue 3 + TypeScript + Composition API',
-            path: 'agents/vue3.agent.md',
-            tags: ['vue3', 'typescript', 'composition-api'],
-            default: true
-        },
-        {
-            id: 'typescript-agent',
-            type: 'agent',
-            category: 'agents',
-            title: 'TypeScript Agent',
-            description: 'TypeScript 严格模式和类型安全',
-            path: 'agents/typescript.agent.md',
-            tags: ['typescript', 'type-safety'],
-            default: true
-        },
-        {
-            id: 'i18n-agent',
-            type: 'agent',
-            category: 'agents',
-            title: 'i18n Agent',
-            description: '国际化最佳实践',
-            path: 'agents/i18n.agent.md',
-            tags: ['i18n', 'vue-i18n'],
-            default: true
-        },
-        {
-            id: 'vitasage-recipe',
-            type: 'prompt',
-            category: 'industry',
-            title: 'VitaSage 配方系统',
-            description: '工业配方管理系统完整开发规范',
-            path: 'industry/vitasage-recipe.md',
-            tags: ['vue3', 'typescript', 'element-plus'],
-            default: false
-        },
-        {
-            id: 'vue3-typescript',
-            type: 'prompt',
-            category: 'vue',
-            title: 'Vue 3 + TypeScript',
-            description: 'Vue 3 Composition API + TypeScript 最佳实践',
-            path: 'vue/vue3-typescript.md',
-            tags: ['vue3', 'typescript'],
-            default: false
-        },
-        {
-            id: 'typescript-strict',
-            type: 'prompt',
-            category: 'common',
-            title: 'TypeScript 严格模式',
-            description: '零 any、严格空检查、完整类型定义',
-            path: 'common/typescript-strict.md',
-            tags: ['typescript', 'type-safety'],
-            default: false
-        },
-        {
-            id: 'i18n',
-            type: 'prompt',
-            category: 'common',
-            title: '国际化 (i18n)',
-            description: '零硬编码文本，完整国际化方案',
-            path: 'common/i18n.md',
-            tags: ['i18n', 'vue-i18n'],
-            default: false
-        }
-    ];
-
-    constructor(private context: vscode.ExtensionContext) {
+    constructor(private context: vscode.ExtensionContext, private outputChannel?: vscode.OutputChannel) {
+        this.githubClient = new GitHubClient(outputChannel);
+        
         // 从存储中恢复选中状态
         const stored = context.workspaceState.get<string[]>(this.STORAGE_KEY);
         if (stored) {
             this.selectedPrompts = new Set(stored);
         } else {
-            // 默认选中
-            this.selectedPrompts = new Set(
-                this.prompts.filter(p => p.default).map(p => p.id)
-            );
+            this.selectedPrompts = new Set();
         }
+
+        // 初始化时加载配置
+        this.initialize();
+    }
+
+    /**
+     * 初始化：从 GitHub 加载配置
+     */
+    private async initialize(): Promise<void> {
+        if (this.isLoading) {
+            return;
+        }
+
+        try {
+            this.isLoading = true;
+            this.outputChannel?.appendLine('正在从 GitHub 加载配置...');
+
+            // 并行加载配置列表和项目文档
+            const [prompts, docs] = await Promise.all([
+                this.githubClient.fetchPromptsList(),
+                this.githubClient.fetchProjectDocs()
+            ]);
+
+            this.prompts = prompts;
+            this.projectDocs = docs;
+
+            // 如果没有选中任何配置，选择默认配置
+            if (this.selectedPrompts.size === 0) {
+                const defaults = this.prompts.filter(p => p.default).map(p => p.id);
+                this.selectedPrompts = new Set(defaults);
+                this.saveState();
+            }
+
+            this.outputChannel?.appendLine(`✅ 成功加载 ${prompts.length} 个配置`);
+        } catch (error) {
+            this.outputChannel?.appendLine(`⚠️ 加载配置失败，使用降级模式: ${error}`);
+            // 使用降级配置
+            this.prompts = this.getFallbackPrompts();
+        } finally {
+            this.isLoading = false;
+        }
+    }
+
+    /**
+     * 刷新配置（从 GitHub 重新加载）
+     */
+    async refresh(): Promise<void> {
+        this.githubClient.clearCache();
+        await this.initialize();
     }
 
     getAllPrompts(): PromptData[] {
@@ -250,46 +219,31 @@ export class ConfigManager {
 
         const selectedPrompts = this.prompts.filter(p => selected.includes(p.id));
 
-        // 获取 prompts 目录路径
-        const config = vscode.workspace.getConfiguration('copilotPrompts');
-        const configuredPath = config.get<string>('promptsPath');
-        
-        // 智能查找 prompts 目录
-        const possiblePaths = [
-            configuredPath ? path.resolve(workspaceFolder.uri.fsPath, configuredPath) : null,
-            path.join(workspaceFolder.uri.fsPath, 'copilot-prompts'),
-            path.resolve(workspaceFolder.uri.fsPath, '../copilot-prompts'),
-            workspaceFolder.uri.fsPath  // 当前目录本身
-        ].filter(Boolean) as string[];
-
-        let promptsDir: string | undefined;
-        for (const testPath of possiblePaths) {
-            if (fs.existsSync(testPath) && (
-                fs.existsSync(path.join(testPath, 'agents')) ||
-                fs.existsSync(path.join(testPath, 'common')) ||
-                fs.existsSync(path.join(testPath, 'industry'))
-            )) {
-                promptsDir = testPath;
-                break;
-            }
-        }
-
-        if (!promptsDir) {
-            throw new Error(`找不到 Prompts 目录。已尝试:\n${possiblePaths.join('\n')}`);
-        }
-
         // 生成配置内容
         let content = '# AI 开发指南\n\n';
-        content += '> 本文件自动生成，请勿手动编辑\n\n';
+        content += '> 本文件自动生成，请勿手动编辑\n';
+        content += '> 配置从 GitHub 仓库动态获取: https://github.com/ForLear/copilot-prompts\n\n';
         content += '---\n\n';
 
+        // 添加项目文档汇总（优化生成质量）
+        if (this.projectDocs) {
+            content += '# 📚 项目文档汇总（优化 Copilot 生成质量）\n\n';
+            content += this.projectDocs;
+            content += '\n\n---\n\n';
+        }
+
+        // 添加选中的 prompts 内容
         for (const prompt of selectedPrompts) {
-            const filePath = path.join(promptsDir, prompt.path);
-            if (fs.existsSync(filePath)) {
+            try {
+                // 从 GitHub 获取最新内容
+                const promptContent = await this.githubClient.fetchFileContent(prompt.path);
+                
                 content += `---\n\n`;
                 content += `<!-- Source: ${prompt.path} -->\n\n`;
-                content += fs.readFileSync(filePath, 'utf-8');
+                content += promptContent;
                 content += '\n\n';
+            } catch (error) {
+                this.outputChannel?.appendLine(`⚠️ 获取 ${prompt.path} 失败: ${error}`);
             }
         }
 
@@ -303,6 +257,7 @@ export class ConfigManager {
 
         const now = new Date();
         content += `\n生成时间: ${now.toLocaleString('zh-CN')}\n`;
+        content += `配置来源: GitHub (动态获取)\n`;
 
         // 写入文件
         const outputDir = path.join(workspaceFolder.uri.fsPath, '.github');
@@ -321,5 +276,53 @@ export class ConfigManager {
         fs.writeFileSync(outputPath, content, 'utf-8');
 
         return { success: true, count: selectedPrompts.length };
+    }
+
+    /**
+     * 获取降级配置
+     */
+    private getFallbackPrompts(): PromptData[] {
+        return [
+            {
+                id: 'vitasage-agent',
+                type: 'agent',
+                category: 'agents',
+                title: 'VitaSage Agent',
+                description: 'VitaSage 工业配方管理系统专用',
+                path: 'agents/vitasage.agent.md',
+                tags: ['vue3', 'typescript', 'element-plus', 'logicflow'],
+                default: true
+            },
+            {
+                id: 'vue3-agent',
+                type: 'agent',
+                category: 'agents',
+                title: 'Vue 3 Agent',
+                description: 'Vue 3 + TypeScript + Composition API',
+                path: 'agents/vue3.agent.md',
+                tags: ['vue3', 'typescript', 'composition-api'],
+                default: true
+            },
+            {
+                id: 'typescript-agent',
+                type: 'agent',
+                category: 'agents',
+                title: 'TypeScript Agent',
+                description: 'TypeScript 严格模式和类型安全',
+                path: 'agents/typescript.agent.md',
+                tags: ['typescript', 'type-safety'],
+                default: true
+            },
+            {
+                id: 'i18n-agent',
+                type: 'agent',
+                category: 'agents',
+                title: 'i18n Agent',
+                description: '国际化最佳实践',
+                path: 'agents/i18n.agent.md',
+                tags: ['i18n', 'vue-i18n'],
+                default: true
+            }
+        ];
     }
 }

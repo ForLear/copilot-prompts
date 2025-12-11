@@ -6,7 +6,12 @@ import { ConfigValidator } from './configValidator';
 export function activate(context: vscode.ExtensionContext) {
     console.log('Copilot Prompts Manager 已激活');
 
-    const configManager = new ConfigManager(context);
+    // 创建输出通道
+    const outputChannel = vscode.window.createOutputChannel('Copilot Prompts Manager');
+    outputChannel.appendLine('Copilot Prompts Manager v1.3.0 已启动');
+    outputChannel.appendLine('配置源: GitHub (动态获取)');
+
+    const configManager = new ConfigManager(context, outputChannel);
     const promptsProvider = new PromptsProvider(configManager);
     const configValidator = new ConfigValidator();
 
@@ -14,7 +19,7 @@ export function activate(context: vscode.ExtensionContext) {
     const treeView = vscode.window.createTreeView('copilotPromptsTree', {
         treeDataProvider: promptsProvider,
         showCollapseAll: true,
-        canSelectMany: false
+        canSelectMany: true
     });
 
     // 监听 checkbox 变化事件，立即生效
@@ -99,10 +104,12 @@ export function activate(context: vscode.ExtensionContext) {
     });
 
     // 刷新
-    const refresh = vscode.commands.registerCommand('copilotPrompts.refresh', () => {
+    const refresh = vscode.commands.registerCommand('copilotPrompts.refresh', async () => {
+        outputChannel.appendLine('正在刷新配置...');
+        await configManager.refresh();
         promptsProvider.refresh();
         updateStatusBar();
-        vscode.window.showInformationMessage('✅ 已刷新');
+        vscode.window.showInformationMessage('✅ 已从 GitHub 刷新最新配置');
     });
 
     // 全选
