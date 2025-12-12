@@ -143,7 +143,7 @@ export function activate(context: vscode.ExtensionContext) {
     };
     updateStatusBar();
 
-    // 应用配置到当前项目（静默执行）
+    // 应用配置到当前项目（先选择目标项目）
     const applyConfig = vscode.commands.registerCommand('copilotPrompts.applyConfig', async () => {
         try {
             const selected = configManager.getSelectedPrompts();
@@ -159,12 +159,50 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
 
-            const result = await configManager.applyConfig();
+            // 先让用户选择目标项目
+            const folders = vscode.workspace.workspaceFolders;
+            if (!folders || folders.length === 0) {
+                vscode.window.showWarningMessage('请先打开一个工作区');
+                return;
+            }
+
+            interface FolderQuickPick extends vscode.QuickPickItem {
+                folder: vscode.WorkspaceFolder;
+            }
+
+            let targetFolder: vscode.WorkspaceFolder;
+
+            if (folders.length === 1) {
+                // 只有一个工作区，直接使用
+                targetFolder = folders[0];
+            } else {
+                // 多个工作区，让用户选择
+                const items: FolderQuickPick[] = folders.map(folder => ({
+                    label: `$(folder) ${folder.name}`,
+                    description: folder.uri.fsPath,
+                    detail: `应用 ${selected.length} 个配置到此项目`,
+                    folder: folder
+                }));
+
+                const selectedItem = await vscode.window.showQuickPick(items, {
+                    placeHolder: `选择要应用配置的项目 (已选择 ${selected.length} 个配置)`,
+                    title: '应用 MTA 智能助手配置',
+                    ignoreFocusOut: true
+                });
+
+                if (!selectedItem) {
+                    return; // 用户取消
+                }
+
+                targetFolder = selectedItem.folder;
+            }
+
+            // 应用到选定的工作区
+            const result = await configManager.applyConfigToWorkspace(targetFolder);
             if (result.success) {
-                // 静默应用，仅在状态栏显示
                 updateStatusBar();
-                outputChannel.appendLine(`✅ 配置已应用 (${result.count} 个)`);
-                vscode.window.showInformationMessage(`✅ 已应用 ${result.count} 个配置到当前项目`);
+                outputChannel.appendLine(`✅ 配置已应用到 ${targetFolder.name} (${result.count} 个)`);
+                vscode.window.showInformationMessage(`✅ 已应用 ${result.count} 个配置到 ${targetFolder.name}`);
             }
         } catch (error) {
             vscode.window.showErrorMessage(`应用配置失败: ${error}`);

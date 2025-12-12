@@ -46,13 +46,13 @@
     "commands": [
       {
         "command": "copilotPrompts.applyConfig",
-        "title": "应用到项目",
+        "title": "应用到项目...",
         "category": "Copilot Prompts",
         "icon": "$(cloud-download)"
       },
       {
         "command": "copilotPrompts.clearProjectConfig",
-        "title": "清空项目配置",
+        "title": "清空项目配置...",
         "category": "Copilot Prompts",
         "icon": "$(trash)"
       },
