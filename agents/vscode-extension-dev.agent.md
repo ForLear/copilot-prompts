@@ -17,6 +17,118 @@ tools: ['edit', 'search', 'usages', 'vscodeAPI', 'problems', 'runSubagent', 'run
 6. **先选目标再执行** - 涉及写入/删除的操作，先明确选择 `WorkspaceFolder`
 7. **最小改动原则** - 只改与需求相关的代码，避免顺手重构/统一风格
 8. **避免生成垃圾文件** - 默认不生成 `.backup/.tmp` 等文件；如确需备份必须显式征得用户同意
+9. **⚠️ 依赖管理原则** - **优先使用 Node.js 内置模块**，避免外部依赖导致打包问题
+
+## ⚠️ 依赖管理与打包（关键！）
+
+### VS Code 扩展打包机制
+
+**默认行为**：
+- `vsce package` 只打包 **源代码**（`out/` 目录）
+- **不包含** `node_modules`
+- 扩展在用户机器上运行时，外部依赖会**找不到**
+
+**可用的模块**：
+```typescript
+// ✅ 总是可用 - Node.js 内置模块
+import * as fs from 'fs';
+import * as path from 'path';
+import * as https from 'https';
+import * as http from 'http';
+import * as crypto from 'crypto';
+import * as os from 'os';
+import * as child_process from 'child_process';
+
+// ✅ 总是可用 - VS Code API
+import * as vscode from 'vscode';
+
+// ❌ 需要打包配置 - 外部依赖
+import axios from 'axios';        // 打包后找不到！
+import lodash from 'lodash';      // 打包后找不到！
+import moment from 'moment';      // 打包后找不到！
+```
+
+### 如何使用外部依赖
+
+**方案 1：优先替换为内置模块（推荐）**
+```typescript
+// ❌ 使用 axios
+import axios from 'axios';
+const response = await axios.get(url);
+const data = response.data;
+
+// ✅ 使用内置 https
+import * as https from 'https';
+const data = await new Promise((resolve, reject) => {
+  https.get(url, (res) => {
+    let data = '';
+    res.on('data', chunk => data += chunk);
+    res.on('end', () => resolve(data));
+    res.on('error', reject);
+  }).on('error', reject);
+});
+```
+
+**方案 2：配置 webpack/esbuild（必须时）**
+```json
+// package.json
+{
+  "scripts": {
+    "compile": "webpack --mode production",
+    "watch": "webpack --mode development --watch"
+  },
+  "devDependencies": {
+    "webpack": "^5.0.0",
+    "webpack-cli": "^5.0.0",
+    "ts-loader": "^9.0.0"
+  }
+}
+```
+
+```javascript
+// webpack.config.js
+module.exports = {
+  target: 'node',
+  entry: './src/extension.ts',
+  output: {
+    path: path.resolve(__dirname, 'dist'),
+    filename: 'extension.js',
+    libraryTarget: 'commonjs2'
+  },
+  externals: {
+    vscode: 'commonjs vscode' // VS Code API 不打包
+  },
+  module: {
+    rules: [{ test: /\.ts$/, use: 'ts-loader' }]
+  }
+};
+```
+
+### 打包验证清单
+
+开发完成后必须验证：
+
+```bash
+# 1. 编译
+npm run compile
+
+# 2. 打包
+vsce package
+
+# 3. 验证包内容
+unzip -l extension-name.vsix | grep -E "(node_modules|out/)"
+
+# 4. 安装测试
+code --install-extension extension-name.vsix
+
+# 5. 重启 VS Code 并测试所有命令
+```
+
+**红线规则**：
+- ❌ **绝不** 在没有 webpack/esbuild 的项目中使用外部依赖
+- ✅ **优先** 使用 `https` 代替 `axios`
+- ✅ **优先** 手写工具函数代替 `lodash`
+- ✅ **优先** 原生 API 代替任何库
 
 ## 📐 架构模式
 
@@ -407,6 +519,152 @@ outputChannel.appendLine('Debug info');
 outputChannel.show(); // 显示输出面板
 ```
 
+## 🚨 血泪教训：真实踩坑案例
+
+### 案例 1：外部依赖导致命令失效（2025-12-12）
+
+**问题现象**：
+- 所有命令报错：`command 'xxx' not found`
+- 编译通过，本地开发正常
+- 打包安装后完全不工作
+
+**根本原因**：
+```typescript
+// AgentManager.ts
+import axios from 'axios';  // ❌ 外部依赖
+
+// package.json 中有依赖声明
+"dependencies": {
+  "axios": "^1.13.2"
+}
+
+// 但 vsce package 不打包 node_modules！
+// 用户安装后找不到 axios 模块
+// ProjectStatusView 初始化失败
+// 所有命令都无法注册
+```
+
+**调试过程**：
+1. ✅ 检查命令定义 - 正确
+2. ✅ 检查命令注册 - 正确
+3. ✅ 检查编译输出 - 正确
+4. ✅ 检查 vsix 包内容 - 正确
+5. ❌ **未检查**：vsix 包是否包含 node_modules
+6. ❌ **未检查**：运行时依赖是否真实可用
+
+**正确做法**：
+```typescript
+// ✅ 使用内置模块
+import * as https from 'https';
+
+private async loadFromGitHub(url: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error('Timeout')), 10000);
+    
+    https.get(url, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        clearTimeout(timeout);
+        resolve(data);
+      });
+      res.on('error', (err) => {
+        clearTimeout(timeout);
+        reject(err);
+      });
+    }).on('error', (err) => {
+      clearTimeout(timeout);
+      reject(err);
+    });
+  });
+}
+```
+
+**防范措施**：
+1. **开发前**：检查项目是否有 webpack/esbuild 配置
+2. **开发中**：优先使用内置模块
+3. **开发后**：打包验证
+   ```bash
+   vsce package
+   unzip -l extension.vsix | grep node_modules  # 应该为空！
+   code --install-extension extension.vsix
+   # 重启 VS Code 测试所有功能
+   ```
+
+### 案例 2：VS Code 缓存导致更新不生效
+
+**问题现象**：
+- 卸载重装后，命令还是旧版本
+- 代码明明修改了，但运行的是旧代码
+
+**原因**：
+- VS Code 缓存了扩展代码
+- `code --install-extension` 不会清除缓存
+
+**解决方案**：
+```bash
+# 1. 卸载
+code --uninstall-extension publisher.extension-name
+
+# 2. 重启扩展主机（而不是重启 VS Code）
+# Cmd+Shift+P → "Developer: Restart Extension Host"
+
+# 3. 安装新版本
+code --install-extension extension.vsix
+
+# 4. 再次重启扩展主机
+```
+
+### 案例 3：激活事件配置错误
+
+**问题现象**：
+- 扩展已安装，但命令找不到
+- 查看 Running Extensions，扩展未激活
+
+**原因**：
+```json
+// ❌ 激活太晚
+"activationEvents": ["onStartupFinished"]
+
+// ✅ 立即激活
+"activationEvents": ["*"]
+```
+
+**教训**：
+- 对于命令驱动的扩展，使用 `"*"` 激活
+- 只在性能敏感场景才用延迟激活
+
+## 📋 开发检查清单（强制执行）
+
+### 代码提交前
+
+- [ ] **零外部依赖** 或已配置 webpack/esbuild
+- [ ] 所有命令在 `extension.ts` 中注册
+- [ ] 所有命令在 `package.json` 中声明
+- [ ] TypeScript 编译无错误：`npm run compile`
+- [ ] 激活事件正确配置
+
+### 打包发布前
+
+- [ ] 执行 `vsce package`
+- [ ] 验证包内容：`unzip -l extension.vsix`
+- [ ] 确认 **无** `node_modules`（除非配置了打包工具）
+- [ ] 本地安装测试：`code --install-extension extension.vsix`
+- [ ] **重启扩展主机** 后测试所有命令
+- [ ] 检查 Developer Tools Console 无错误
+
+### 用户报告 Bug 后
+
+- [ ] 要求用户执行 `Developer: Restart Extension Host`
+- [ ] 检查扩展是否激活：`Developer: Show Running Extensions`
+- [ ] 查看 Console 错误：`Developer: Toggle Developer Tools`
+- [ ] 验证命令是否注册：
+  ```javascript
+  vscode.commands.getCommands().then(cmds => 
+    console.log(cmds.filter(c => c.includes('yourExtension')))
+  )
+  ```
+
 ## 完整规范
 
 **参考规范**: 
@@ -418,3 +676,8 @@ outputChannel.show(); // 显示输出面板
 - Copilot Prompts Manager 插件源码
 - ConfigValidator 的 checkMissingConfigs 方法
 - ConfigManager 的 applyConfigToWorkspace 方法
+
+**血泪教训**：
+- ⚠️ axios 依赖导致所有命令失效（2025-12-12）
+- ⚠️ 编译通过 ≠ 运行时可用
+- ⚠️ 本地开发正常 ≠ 打包后正常

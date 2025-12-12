@@ -1,8 +1,8 @@
 {
   "name": "copilot-prompts-manager",
   "displayName": "Copilot Prompts Manager",
-  "description": "管理和切换 GitHub Copilot 的 Prompts 和 Agents 配置 - 从 GitHub 动态获取",
-  "version": "1.3.0",
+  "description": "管理和切换 GitHub Copilot 的 Prompts 和 Agents 配置 - 自动匹配 + 三级缓存 + 极简输出",
+  "version": "2.0.0",
   "publisher": "forlear",
   "icon": "media/icon.png",
   "engines": {
@@ -20,7 +20,7 @@
     "github"
   ],
   "activationEvents": [
-    "onStartupFinished"
+    "*"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -36,8 +36,14 @@
     "views": {
       "copilot-prompts": [
         {
+          "id": "copilotProjectStatus",
+          "name": "📊 项目配置状态",
+          "icon": "media/icon.svg",
+          "contextualTitle": "Project Status"
+        },
+        {
           "id": "copilotPromptsTree",
-          "name": "可用配置",
+          "name": "📚 可用配置 (传统模式)",
           "icon": "media/icon.svg",
           "contextualTitle": "Copilot Prompts"
         }
@@ -134,15 +140,51 @@
         "icon": "$(file-text)"
       },
       {
+        "command": "copilotPrompts.autoGenerateConfig",
+        "title": "自动生成智能配置 (实验性)",
+        "category": "Copilot Prompts",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "copilotPrompts.autoConfigProject",
+        "title": "✨ 自动配置项目",
+        "category": "Copilot Prompts",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "copilotPrompts.autoConfigAll",
+        "title": "✨ 批量配置所有项目",
+        "category": "Copilot Prompts",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "copilotPrompts.updateProjectConfig",
+        "title": "🔄 更新配置",
+        "category": "Copilot Prompts",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "copilotPrompts.deleteProjectConfig",
+        "title": "🗑️ 删除配置",
+        "category": "Copilot Prompts",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "copilotPrompts.refreshProjectStatus",
+        "title": "刷新项目状态",
+        "category": "Copilot Prompts",
+        "icon": "$(refresh)"
+      },
+      {
         "command": "copilotPrompts.createAgent",
         "title": "新建 Agent",
-        "category": "MTA 智能助手",
+        "category": "Copilot Prompts",
         "icon": "$(add)"
       },
       {
         "command": "copilotPrompts.editAgent",
         "title": "编辑 Agent",
-        "category": "MTA 智能助手",
+        "category": "Copilot Prompts",
         "icon": "$(edit)"
       },
       {
@@ -154,6 +196,16 @@
     ],
     "menus": {
       "view/title": [
+        {
+          "command": "copilotPrompts.autoConfigAll",
+          "when": "view == copilotProjectStatus",
+          "group": "navigation@0"
+        },
+        {
+          "command": "copilotPrompts.refreshProjectStatus",
+          "when": "view == copilotProjectStatus",
+          "group": "navigation@1"
+        },
         {
           "command": "copilotPrompts.applyConfig",
           "when": "view == copilotPromptsTree",
@@ -190,6 +242,11 @@
           "group": "navigation@6"
         },
         {
+          "command": "copilotPrompts.autoGenerateConfig",
+          "when": "view == copilotPromptsTree",
+          "group": "navigation@7"
+        },
+        {
           "command": "copilotPrompts.showActive",
           "when": "view == copilotPromptsTree",
           "group": "1_info@1"
@@ -212,6 +269,21 @@
       ],
       "view/item/context": [
         {
+          "command": "copilotPrompts.autoConfigProject",
+          "when": "view == copilotProjectStatus && viewItem == project-unconfigured",
+          "group": "inline"
+        },
+        {
+          "command": "copilotPrompts.updateProjectConfig",
+          "when": "view == copilotProjectStatus && viewItem == project-configured",
+          "group": "inline"
+        },
+        {
+          "command": "copilotPrompts.deleteProjectConfig",
+          "when": "view == copilotProjectStatus && viewItem == project-configured",
+          "group": "delete@1"
+        },
+        {
           "command": "copilotPrompts.viewPromptContent",
           "when": "view == copilotPromptsView && viewItem == prompt",
           "group": "inline"
@@ -223,6 +295,11 @@
         }
       ],
       "explorer/context": [
+        {
+          "command": "copilotPrompts.autoGenerateConfig",
+          "when": "explorerResourceIsFolder && resourceScheme == file",
+          "group": "copilot@0"
+        },
         {
           "command": "copilotPrompts.applyToFolder",
           "when": "explorerResourceIsFolder && resourceScheme == file",
@@ -283,9 +360,9 @@
     "@types/vscode": "^1.85.0",
     "@typescript-eslint/eslint-plugin": "^6.13.0",
     "@typescript-eslint/parser": "^6.13.0",
+    "@vscode/vsce": "^2.22.0",
     "eslint": "^8.54.0",
-    "typescript": "^5.3.2",
-    "@vscode/vsce": "^2.22.0"
+    "typescript": "^5.3.2"
   },
   "repository": {
     "type": "git",
