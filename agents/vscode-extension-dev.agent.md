@@ -14,6 +14,9 @@ tools: ['edit', 'search', 'usages', 'vscodeAPI', 'problems', 'runSubagent', 'run
 3. **错误处理完备** - try-catch-finally，用户友好的错误提示
 4. **静默式 UX** - 减少弹窗，使用状态栏和内联 UI
 5. **参数传递精准** - 避免全局状态，显式传递上下文
+6. **先选目标再执行** - 涉及写入/删除的操作，先明确选择 `WorkspaceFolder`
+7. **最小改动原则** - 只改与需求相关的代码，避免顺手重构/统一风格
+8. **避免生成垃圾文件** - 默认不生成 `.backup/.tmp` 等文件；如确需备份必须显式征得用户同意
 
 ## 📐 架构模式
 
@@ -30,6 +33,23 @@ async function operateOnWorkspace(targetFolder: vscode.WorkspaceFolder) {
 async function operateOnWorkspace() {
   const folder = vscode.workspace.workspaceFolders?.[0];
   // 可能操作错误的工作区
+}
+
+// ✅ 好 - 先让用户选择目标工作区（单工作区则跳过选择）
+async function pickTargetWorkspace(): Promise<vscode.WorkspaceFolder | undefined> {
+  const folders = vscode.workspace.workspaceFolders;
+  if (!folders || folders.length === 0) return undefined;
+  if (folders.length === 1) return folders[0];
+
+  const selected = await vscode.window.showQuickPick(
+    folders.map(folder => ({
+      label: `$(folder) ${folder.name}`,
+      description: folder.uri.fsPath,
+      folder,
+    })),
+    { title: '选择目标项目', placeHolder: '选择要执行操作的项目', ignoreFocusOut: true }
+  );
+  return selected?.folder;
 }
 ```
 
@@ -226,6 +246,39 @@ async function createConfig(folder: vscode.WorkspaceFolder) {
     throw new Error(`创建配置失败: ${error}`);
   }
 }
+
+### 4. 无意义的备份文件污染
+
+```typescript
+// ❌ 坏 - 默认生成 .backup，污染用户工作区
+function writeWithBackup(filePath: string, content: string) {
+  if (fs.existsSync(filePath)) {
+    fs.copyFileSync(filePath, `${filePath}.backup.${Date.now()}`);
+  }
+  fs.writeFileSync(filePath, content, 'utf-8');
+}
+
+// ✅ 好 - 默认直接覆盖；如果风险较高，用确认框 + 明确告知影响范围
+async function safeOverwrite(filePath: string, content: string, label: string) {
+  const confirm = await vscode.window.showWarningMessage(
+    `确认覆盖 ${label}？`,
+    { modal: true },
+    '确认',
+    '取消'
+  );
+  if (confirm !== '确认') return;
+  fs.writeFileSync(filePath, content, 'utf-8');
+}
+```
+
+### 5. 右键菜单/按钮消失（动态 contextKey 导致）
+
+```typescript
+// ✅ 建议 - 菜单常驻展示，执行时再校验（避免“刚操作完菜单消失”的体验）
+// 1) contributes.menus 的 when 条件尽量保持静态
+// 2) 命令执行时做校验：是否项目根目录/是否存在目标文件/是否允许操作
+// 3) 校验失败给出明确提示，而不是隐藏入口
+```
 ```
 
 ## 📋 代码审查清单
@@ -287,12 +340,16 @@ function ensureGitIgnore(workspacePath: string, fileToIgnore: string): void {
 ### 备份策略
 
 ```typescript
-// 覆盖前创建带时间戳的备份
-function safeWriteFile(filePath: string, content: string): void {
-  if (fs.existsSync(filePath)) {
-    const backupPath = `${filePath}.backup.${Date.now()}`;
-    fs.copyFileSync(filePath, backupPath);
-  }
+// 默认不生成备份文件（避免污染用户工作区）
+// 如涉及高风险覆盖：用确认弹窗 + 明确告知影响范围
+async function safeOverwrite(filePath: string, content: string, label: string): Promise<void> {
+  const confirm = await vscode.window.showWarningMessage(
+    `确认覆盖 ${label}？`,
+    { modal: true },
+    '确认',
+    '取消'
+  );
+  if (confirm !== '确认') return;
   fs.writeFileSync(filePath, content, 'utf-8');
 }
 ```
