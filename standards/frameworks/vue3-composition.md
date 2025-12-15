@@ -1,5 +1,13 @@
 # Vue 3 Composition API 核心规范
 
+## 🎯 核心原则
+
+1. **使用 `<script setup lang="ts">`** - 简洁的 Composition API 语法
+2. **类型安全优先** - 所有 Props/Emits 必须有类型定义
+3. **响应式最佳实践** - 正确使用 ref/reactive
+4. **模板规范** - 避免复杂逻辑,禁止内联样式
+5. **组件解耦** - 清晰的 Props/Emits 接口
+
 ## 组件基本结构
 
 ```vue
@@ -47,19 +55,95 @@ onMounted(() => {
 
 <template>
   <div class="my-component">
+    <!-- ✅ 使用计算属性或方法处理复杂逻辑 -->
     <input 
       v-model="localValue" 
       :disabled="disabled"
       @change="handleChange"
     />
+    
+    <!-- ✅ 简单的条件渲染 -->
+    <p v-if="isLoading">{{ $t('加载中') }}</p>
+    
+    <!-- ❌ 禁止：内联样式 -->
+    <!-- <div style="color: red">错误示例</div> -->
+    
+    <!-- ❌ 禁止：复杂的模板表达式 -->
+    <!-- <div>{{ items.filter(i => i.active).map(i => i.name).join(', ') }}</div> -->
+    
+    <!-- ✅ 正确：使用计算属性 -->
+    <div>{{ activeItemNames }}</div>
   </div>
 </template>
 
 <style scoped>
+/* ✅ 使用 scoped 样式替代内联样式 */
 .my-component {
   /* 组件样式 */
 }
+
+.error-text {
+  color: red;
+}
 </style>
+```
+
+## 组件通信
+
+### v-model 双向绑定
+```vue
+<script setup lang="ts">
+// ✅ 正确 - 使用 modelValue 约定
+interface Props {
+  modelValue: string
+}
+
+interface Emits {
+  (e: 'update:modelValue', value: string): void
+}
+
+const props = defineProps<Props>()
+const emit = defineEmits<Emits>()
+
+// 本地状态同步
+const localValue = computed({
+  get: () => props.modelValue,
+  set: (val) => emit('update:modelValue', val)
+})
+</script>
+
+<template>
+  <input v-model="localValue" />
+</template>
+```
+
+### 多个 v-model
+```typescript
+interface Props {
+  modelValue: string
+  count: number
+}
+
+interface Emits {
+  (e: 'update:modelValue', value: string): void
+  (e: 'update:count', value: number): void
+}
+
+// 使用: <MyComponent v-model="text" v-model:count="num" />
+```
+
+### Provide/Inject (跨层级通信)
+```typescript
+// 父组件
+import { provide } from 'vue'
+
+const theme = ref('dark')
+provide('theme', theme)
+
+// 子孙组件
+import { inject } from 'vue'
+
+const theme = inject<Ref<string>>('theme')
 ```
 
 ## Props 定义
@@ -230,14 +314,76 @@ export function useCounter(initialValue = 0) {
 const { count, increment } = useCounter(10)
 ```
 
-## 禁止模式
+## ❌ 禁止模式
 
+### 代码层面
 ```typescript
-// ❌ 坏 - Options API
+// ❌ Options API
 export default {
   data() {
     return { count: 0 }
   },
+  methods: {
+    increment() {
+      this.count++
+    }
+  }
+}
+
+// ❌ 使用 this
+const increment = () => {
+  this.count++  // Composition API 中没有 this
+}
+
+// ❌ 直接修改 props
+const handleClick = () => {
+  props.value = 'new value'  // 禁止！应使用 emit
+}
+
+// ❌ reactive 重新赋值
+let state = reactive({ count: 0 })
+state = reactive({ count: 1 })  // 失去响应式
+
+// ❌ 解构 reactive 对象
+const { count } = reactive({ count: 0 })  // 失去响应式
+```
+
+### 模板层面
+```vue
+<template>
+  <!-- ❌ 禁止内联样式 -->
+  <div style="color: red; font-size: 14px">错误</div>
+  
+  <!-- ✅ 使用 class -->
+  <div class="error-text">正确</div>
+  
+  <!-- ❌ 禁止复杂表达式 -->
+  <div>{{ items.filter(i => i.active).map(i => i.name).join(', ') }}</div>
+  
+  <!-- ✅ 使用计算属性 -->
+  <div>{{ activeItemNames }}</div>
+  
+  <!-- ❌ 禁止在模板中调用方法进行数据转换 -->
+  <div v-for="item in items" :key="item.id">
+    {{ formatDate(item.createdAt) }}  <!-- 每次渲染都会调用 -->
+  </div>
+  
+  <!-- ✅ 使用计算属性缓存结果 -->
+  <div v-for="item in formattedItems" :key="item.id">
+    {{ item.formattedDate }}
+  </div>
+</template>
+```
+
+## ✅ 最佳实践总结
+
+1. **组件结构顺序**: Props → Emits → 状态 → 计算属性 → 方法 → 生命周期
+2. **使用 ref**: 基本类型、需要重新赋值的对象
+3. **使用 reactive**: 不需要重新赋值的表单对象
+4. **模板简洁**: 复杂逻辑提取到计算属性或方法
+5. **禁止内联样式**: 始终使用 scoped CSS 或 class
+6. **类型安全**: Props/Emits 必须有 TypeScript 类型
+7. **响应式陷阱**: 避免解构 reactive,避免重新赋值 reactive
   methods: {
     increment() {
       this.count++
