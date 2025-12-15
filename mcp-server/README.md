@@ -8,14 +8,24 @@
 
 ## 🎯 功能特性
 
+### 核心功能
 - **智能项目分析** - 自动检测 Vue、React、TypeScript 等技术栈
 - **智能 Agent 匹配** - 基于加权评分算法推荐最合适的 Agents  
 - **配置文件生成** - 一键生成 `.github/copilot-instructions.md`
 - **模块化编码规范** - MCP Resources 按需加载，节省 50-70% tokens
-- **上下文智能分析** - 自动检测 imports、关键词，精准匹配规范
-- **智能缓存系统** - LRU 缓存机制，3次以上请求 300%+ 命中率 ⭐新
-- **性能监控统计** - 实时追踪使用情况、Token 节省、响应时间 ⭐新
 - **跨平台支持** - 可用于 Claude Desktop、VS Code 等任何 MCP 客户端
+
+### Phase 4: 傻瓜模式 🎉 NEW
+- **🎯 一键自动配置** - `auto_setup` 工具，30 秒完成 VS Code 配置
+- **🏥 健康检查诊断** - `health_check` 工具，自动诊断并给出修复建议
+- **🧠 零参数智能推荐** - `get_smart_standards` 工具，自动检测上下文
+- **⚡ 预设场景快捷** - `use_preset` 工具，8 种常见场景一键获取
+- **📋 自动路径检测** - 所有工具支持路径自动检测，无需手动输入
+
+### 性能优化
+- **上下文智能分析** - 自动检测 imports、关键词，精准匹配规范
+- **智能缓存系统** - LRU 缓存机制，3次以上请求 300%+ 命中率
+- **性能监控统计** - 实时追踪使用情况、Token 节省、响应时间
 
 ## 📦 安装
 
@@ -74,14 +84,155 @@ Claude: [调用 generate_config 工具]
 
 ## 🛠️ 可用工具
 
-### 1. `analyze_project`
+### 🎯 Phase 4: 傻瓜模式工具（推荐）
 
-分析项目的技术栈和特征。
+#### 1. `auto_setup` - 一键自动配置
+
+30 秒完成 VS Code MCP 配置，无需手动编辑任何文件。
 
 **参数**:
 ```typescript
 {
-  projectPath: string  // 项目绝对路径
+  workspacePath?: string  // 可选，不填则使用当前目录
+}
+```
+
+**返回**:
+```json
+{
+  "success": true,
+  "message": "🎉 MCP 服务器已自动配置到工作区",
+  "steps": [
+    { "step": "创建 .vscode 目录", "status": "success" },
+    { "step": "检测 MCP 服务器路径", "status": "success" },
+    { "step": "创建 mcp.json", "status": "success" },
+    { "step": "更新 settings.json", "status": "success" }
+  ],
+  "nextSteps": [
+    "1. 重新加载 VS Code 窗口",
+    "2. 打开 GitHub Copilot Chat",
+    "3. 尝试说：获取 Vue 3 相关规范"
+  ]
+}
+```
+
+#### 2. `health_check` - 健康检查诊断
+
+检查 MCP 服务器配置和运行状态，自动诊断问题并给出修复建议。
+
+**参数**:
+```typescript
+{
+  workspacePath?: string,  // 可选
+  verbose?: boolean       // 是否显示详细信息
+}
+```
+
+**返回**:
+```json
+{
+  "success": true,
+  "overallStatus": "healthy",
+  "summary": "✅ MCP 服务器状态: healthy",
+  "checks": {
+    "server": { "status": "healthy", "details": ["✅ MCP 服务器正在运行"] },
+    "configuration": { "status": "healthy", "details": ["✅ mcp.json 配置正确"] },
+    "dependencies": { "status": "healthy", "details": ["✅ 服务器版本: 1.4.0"] },
+    "standards": { "status": "healthy", "details": ["✅ 找到 8 个规范文件"] }
+  },
+  "recommendations": ["🎉 一切正常！您可以开始使用 MCP 服务器了"]
+}
+```
+
+#### 3. `get_smart_standards` - 零参数智能推荐
+
+自动检测当前文件类型、导入和场景，推荐最相关的编码规范。
+
+**参数**:
+```typescript
+{
+  currentFile?: string,   // 可选，当前文件路径
+  fileContent?: string    // 可选，文件内容用于分析
+}
+```
+
+**返回**:
+```json
+{
+  "success": true,
+  "analysis": {
+    "source": "file-content",
+    "fileType": "vue",
+    "imports": ["vue", "element-plus", "pinia"],
+    "scenario": "表单组件、状态管理"
+  },
+  "standards": ["standards://core/code-style", "standards://frameworks/vue3-composition"],
+  "stats": {
+    "standardsCount": 5,
+    "estimatedTokens": 4347
+  }
+}
+```
+
+#### 4. `use_preset` - 预设场景快捷方式
+
+使用预定义的常见场景配置，一键获取相关规范。
+
+**预设列表**:
+- `vue3-component` - Vue 3 组件开发
+- `vue3-form` - Vue 3 表单开发
+- `vue3-table` - Vue 3 表格开发
+- `pinia-store` - Pinia 状态管理
+- `api-call` - API 调用层
+- `typescript-strict` - TypeScript 严格模式
+- `i18n` - 国际化开发
+- `composable` - Vue 3 Composable
+
+**参数**:
+```typescript
+{
+  preset: string,          // 预设 ID（见上方列表）
+  customImports?: string[] // 可选，额外的导入
+}
+```
+
+**返回**:
+```json
+{
+  "success": true,
+  "preset": {
+    "id": "vue3-form",
+    "name": "Vue 3 表单开发",
+    "description": "Element Plus 表单组件开发，包含验证和国际化"
+  },
+  "applied": {
+    "fileType": "vue",
+    "imports": ["vue", "element-plus"],
+    "scenario": "表单组件"
+  },
+  "standards": ["standards://core/code-style", "..."],
+  "stats": { "estimatedTokens": 4347 }
+}
+```
+
+#### 5. `list_presets` - 列出所有预设
+
+**参数**: 无
+
+**返回**: 所有可用预设的列表及说明
+
+---
+
+### 📦 基础工具
+
+#### 1. `analyze_project`
+
+分析项目的技术栈和特征。路径可选，不填则自动检测当前工作区。
+
+**参数**:
+```typescript
+{
+  projectPath?: string  // 项目绝对路径（可选，不填则使用当前目录）
 }
 ```
 
@@ -91,6 +242,7 @@ Claude: [调用 generate_config 工具]
   "success": true,
   "projectPath": "/path/to/project",
   "projectName": "my-app",
+  "autoDetected": true,
   "features": {
     "projectType": "vue3",
     "frameworks": ["Vue 3"],

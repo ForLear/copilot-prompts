@@ -4,21 +4,30 @@ import { SmartAgentMatcher } from '../core/smartAgentMatcher.js';
 import { ProjectFeatures, ConsoleLogger } from '../core/types.js';
 
 /**
- * 分析项目工具
+ * 分析项目工具（Phase 4 增强：支持自动检测）
  */
-export async function analyzeProject(args: { projectPath: string }): Promise<{
+export async function analyzeProject(args: { projectPath?: string }): Promise<{
     content: Array<{ type: string; text: string }>;
 }> {
     const logger = new ConsoleLogger();
     
     try {
+        // 自动检测项目路径
+        let projectPath = args.projectPath;
+        
+        if (!projectPath) {
+            // 使用当前工作目录
+            projectPath = process.cwd();
+            logger.log(`📍 未指定路径，使用当前目录: ${projectPath}`);
+        }
+        
         // 验证路径
-        if (!fs.existsSync(args.projectPath)) {
+        if (!fs.existsSync(projectPath)) {
             return {
                 content: [{
                     type: 'text',
                     text: JSON.stringify({
-                        error: `项目路径不存在: ${args.projectPath}`
+                        error: `项目路径不存在: ${projectPath}`
                     }, null, 2)
                 }]
             };
@@ -29,8 +38,8 @@ export async function analyzeProject(args: { projectPath: string }): Promise<{
         
         // 模拟 WorkspaceFolder 接口
         const workspaceFolder = {
-            uri: { fsPath: args.projectPath },
-            name: path.basename(args.projectPath),
+            uri: { fsPath: projectPath },
+            name: path.basename(projectPath),
             index: 0
         };
 
@@ -42,8 +51,9 @@ export async function analyzeProject(args: { projectPath: string }): Promise<{
                 type: 'text',
                 text: JSON.stringify({
                     success: true,
-                    projectPath: args.projectPath,
-                    projectName: path.basename(args.projectPath),
+                    projectPath: projectPath,
+                    projectName: path.basename(projectPath),
+                    autoDetected: !args.projectPath,
                     features: {
                         projectType: features.projectType,
                         frameworks: features.frameworks,

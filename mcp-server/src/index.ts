@@ -13,21 +13,30 @@ import { analyzeProject } from './tools/analyzeProject.js';
 import { matchAgents } from './tools/matchAgents.js';
 import { listAvailableAgents } from './tools/listAgents.js';
 import { generateConfig } from './tools/generateConfig.js';
+import { autoSetup } from './tools/autoSetup.js';
+import { getSmartStandards } from './tools/getSmartStandards.js';
+import { usePreset, listPresets } from './tools/usePreset.js';
+import { healthCheck } from './tools/healthCheck.js';
 import { StandardsManager } from './core/standardsManager.js';
 
-const SERVER_VERSION = '1.2.0';
+const SERVER_VERSION = '1.4.0';
 
 /**
  * Copilot Prompts MCP Server
  * 智能项目分析和编码规范服务
  * 
- * @version 1.2.0
+ * @version 1.4.0
  * @features
  * - 项目技术栈自动检测
  * - 智能 Agent 匹配推荐
  * - 配置文件自动生成
  * - 动态编码规范资源
  * - 跨平台 MCP 支持
+ * - Phase 4: 傻瓜模式增强
+ *   * 一键自动配置
+ *   * 零参数智能推荐
+ *   * 预设场景快捷方式
+ *   * 健康检查诊断
  */
 class CopilotPromptsMCPServer {
   private server: Server;
@@ -91,16 +100,90 @@ class CopilotPromptsMCPServer {
       tools: [
         {
           name: 'analyze_project',
-          description: '分析项目的技术栈、框架、工具和特征。自动检测 Vue、React、TypeScript 等技术。',
+          description: '分析项目的技术栈、框架、工具和特征。自动检测 Vue、React、TypeScript 等技术。路径可选，不填则自动检测当前工作区。',
           inputSchema: {
             type: 'object',
             properties: {
               projectPath: {
                 type: 'string',
-                description: '项目的绝对路径，例如: /Users/username/projects/my-app',
+                description: '项目的绝对路径（可选，不填则使用当前工作目录），例如: /Users/username/projects/my-app',
               },
             },
-            required: ['projectPath'],
+          },
+        },
+        {
+          name: 'auto_setup',
+          description: '🎯 一键自动配置 MCP 服务器到 VS Code 工作区。创建 .vscode/mcp.json、settings.json、extensions.json，无需手动配置。',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              workspacePath: {
+                type: 'string',
+                description: '工作区路径（可选，不填则使用当前目录）',
+              },
+            },
+          },
+        },
+        {
+          name: 'health_check',
+          description: '🏥 检查 MCP 服务器健康状态，诊断配置问题。返回详细的健康报告和修复建议。',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              workspacePath: {
+                type: 'string',
+                description: '工作区路径（可选）',
+              },
+              verbose: {
+                type: 'boolean',
+                description: '是否显示详细信息（默认 false）',
+              },
+            },
+          },
+        },
+        {
+          name: 'get_smart_standards',
+          description: '🧠 零参数智能规范推荐。自动检测当前文件类型、导入、场景，推荐最相关的编码规范。比手动指定参数更简单。',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              currentFile: {
+                type: 'string',
+                description: '当前编辑的文件路径（可选）',
+              },
+              fileContent: {
+                type: 'string',
+                description: '文件内容（可选，用于分析导入和场景）',
+              },
+            },
+          },
+        },
+        {
+          name: 'use_preset',
+          description: '⚡ 使用预设场景快捷获取规范。支持 vue3-component、vue3-form、pinia-store、api-call 等常见场景，一键获取。',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              preset: {
+                type: 'string',
+                enum: ['vue3-component', 'vue3-form', 'vue3-table', 'pinia-store', 'api-call', 'typescript-strict', 'i18n', 'composable'],
+                description: '预设场景 ID',
+              },
+              customImports: {
+                type: 'array',
+                items: { type: 'string' },
+                description: '额外的导入（可选）',
+              },
+            },
+            required: ['preset'],
+          },
+        },
+        {
+          name: 'list_presets',
+          description: '📋 列出所有可用的预设场景及其说明。',
+          inputSchema: {
+            type: 'object',
+            properties: {},
           },
         },
         {
@@ -215,6 +298,21 @@ class CopilotPromptsMCPServer {
         switch (name) {
           case 'analyze_project':
             return await analyzeProject(args as any);
+
+          case 'auto_setup':
+            return await autoSetup(args as any);
+
+          case 'health_check':
+            return await healthCheck(args as any);
+
+          case 'get_smart_standards':
+            return await getSmartStandards(args as any);
+
+          case 'use_preset':
+            return await usePreset(args as any);
+
+          case 'list_presets':
+            return await listPresets();
 
           case 'match_agents':
             return await matchAgents(args as any);
