@@ -31,10 +31,10 @@ copilot-prompts/
 │   ├── libraries/       # 库规范
 │   └── patterns/        # 设计模式
 ├── agents/              # Custom Agents（VS Code 专用）
+│   ├── flutter.agent.md
 │   ├── i18n.agent.md
-│   ├── typescript.agent.md
-│   ├── vitasage.agent.md
 │   ├── logicflow.agent.md
+│   ├── vitasage.agent.md
 │   └── vue3.agent.md
 ├── common/              # 通用开发规范（兼容旧版）
 │   ├── i18n.md

@@ -65,6 +65,7 @@ standards/
 |------|------|------|
 | code-style.md | ~2KB | 命名、注释、代码组织 |
 | typescript-base.md | ~3KB | TS 基础类型、函数、泛型 |
+| dart-base.md | ~5KB | Dart 基础、空安全、异步编程 |
 
 ### Frameworks (框架规范)
 根据项目框架按需加载
@@ -73,6 +74,7 @@ standards/
 |------|--------|----------|
 | vue3-composition.md | Vue 3 | import vue |
 | pinia.md | Pinia | import pinia |
+| flutter.md | Flutter | import flutter, .dart 文件 |
 
 ### Libraries (库规范)
 根据使用的库按需加载
