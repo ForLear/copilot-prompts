@@ -157,6 +157,65 @@ detect_tech_stack() {
     echo "${tech_stack[@]}"
 }
 
+# 配置 VS Code MCP
+configure_vscode_mcp() {
+    local project_path=$1
+    local vscode_dir="$project_path/.vscode"
+    local mcp_file="$vscode_dir/mcp.json"
+    local settings_file="$vscode_dir/settings.json"
+    
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    MCP_SERVER_PATH="$SCRIPT_DIR/mcp-server/build/index.js"
+    
+    mkdir -p "$vscode_dir"
+    
+    print_info "配置 VS Code MCP..."
+    
+    # 创建 mcp.json
+    cat > "$mcp_file" << EOF
+{
+  "servers": {
+    "copilot-prompts": {
+      "command": "node",
+      "args": [
+        "$MCP_SERVER_PATH"
+      ],
+      "env": {},
+      "autoStart": true
+    }
+  }
+}
+EOF
+    
+    # 更新或创建 settings.json
+    if [ -f "$settings_file" ]; then
+        # 如果 settings.json 已存在，需要合并配置
+        print_info "更新现有 settings.json..."
+        # 这里简单处理，如果已有 MCP 配置则跳过
+        if ! grep -q "github.copilot.chat.mcp.enabled" "$settings_file"; then
+            # 移除最后的 } 然后追加配置
+            sed -i '' '$d' "$settings_file"
+            cat >> "$settings_file" << EOF
+  "github.copilot.chat.mcp.enabled": true,
+  "github.copilot.chat.mcp.configFile": "\${workspaceFolder}/.vscode/mcp.json",
+  "github.copilot.chat.mcp.autoStart": true
+}
+EOF
+        fi
+    else
+        # 创建新的 settings.json
+        cat > "$settings_file" << EOF
+{
+  "github.copilot.chat.mcp.enabled": true,
+  "github.copilot.chat.mcp.configFile": "\${workspaceFolder}/.vscode/mcp.json",
+  "github.copilot.chat.mcp.autoStart": true
+}
+EOF
+    fi
+    
+    print_success "已配置 VS Code MCP"
+}
+
 # 生成 .github/copilot-instructions.md
 generate_copilot_instructions() {
     local project_path=$1
@@ -349,14 +408,22 @@ main() {
     
     print_info "使用配置方案: $config_id"
     
+    # 配置 VS Code MCP
+    configure_vscode_mcp "$project_path"
+    
     # 生成配置文件
     generate_copilot_instructions "$project_path" "$config_id" "$tech_stack"
     
     print_header "配置完成"
     print_success "项目已配置完成！"
+    print_info "已配置文件："
+    echo "  - $project_path/.vscode/mcp.json"
+    echo "  - $project_path/.vscode/settings.json"
+    echo "  - $project_path/.github/copilot-instructions.md"
+    echo ""
     print_info "下一步："
     echo "  1. 重启 VS Code (Cmd+Shift+P → Reload Window)"
-    echo "  2. 开始使用 GitHub Copilot"
+    echo "  2. 在 Copilot Chat 中使用 MCP 工具"
     echo "  3. AI 将自动遵循项目规范生成代码"
     echo ""
 }
