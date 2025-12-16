@@ -295,6 +295,6 @@ git check-ignore -v .github/copilot-instructions.md
 ---
 
 **完成日期**: 2025-12-16  
-**维护团队**: MTA团队（蘑菇与吐司的AI团队）  
+**维护团队**: MTA工作室  
 **版本**: v2.1.0  
 **状态**: ✅ 已完成

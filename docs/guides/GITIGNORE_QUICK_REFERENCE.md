@@ -209,5 +209,5 @@ meld .github/copilot-instructions.template.md \
 ---
 
 **创建日期**: 2025-12-16  
-**维护团队**: MTA团队  
+**维护团队**: MTA工作室  
 **适用于**: 所有使用 Copilot 的项目

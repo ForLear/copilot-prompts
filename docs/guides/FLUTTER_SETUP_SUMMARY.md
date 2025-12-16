@@ -331,5 +331,5 @@ git add .github/copilot-instructions.template.md
 ---
 
 **创建日期**: 2025-12-16  
-**维护团队**: MTA团队(蘑菇与吐司的AI团队)  
+**维护团队**: MTA工作室  
 **版本**: 1.0.0
