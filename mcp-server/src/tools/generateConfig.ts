@@ -115,6 +115,25 @@ export async function generateConfig(args: {
         content += `> - 生成时间: ${new Date().toLocaleString('zh-CN')}\n`;
         content += `> - 匹配的 Agents: ${selectedAgents.length} 个\n\n`;
         content += `---\n\n`;
+        
+        // 添加强制工作流说明
+        content += `## ⚠️ 强制工作流\n\n`;
+        content += `**在进行任何代码生成或修改之前，必须先调用 MCP 工具加载相关规范！**\n\n`;
+        content += `根据文件类型和场景，调用相应的 MCP 工具：\n\n`;
+        content += `1. **Vue 文件** → \`get_relevant_standards({ fileType: "vue" })\`\n`;
+        content += `2. **TypeScript 文件** → \`get_relevant_standards({ fileType: "ts" })\`\n`;
+        content += `3. **React 组件** → \`get_relevant_standards({ fileType: "tsx" })\`\n`;
+        content += `4. **使用特定库时**：\n`;
+        content += `   - Element Plus: \`get_relevant_standards({ imports: ["element-plus"] })\`\n`;
+        content += `   - Pinia: \`get_relevant_standards({ imports: ["pinia"] })\`\n`;
+        content += `   - Vue Router: \`get_relevant_standards({ imports: ["vue-router"] })\`\n`;
+        content += `   - LogicFlow: \`get_relevant_standards({ imports: ["@logicflow/core"] })\`\n`;
+        content += `5. **特定场景**：\n`;
+        content += `   - API 调用: \`get_relevant_standards({ scenario: "API 调用" })\`\n`;
+        content += `   - 国际化: \`get_relevant_standards({ scenario: "国际化" })\`\n\n`;
+        content += `### 标准流程\n\n`;
+        content += `1. ✅ **强制**: 加载规范 → 2. 理解需求 → 3. 编写代码 → 4. 验证规范\n\n`;
+        content += `---\n\n`;
 
         // 添加 Agents 内容
         for (const agent of selectedAgents) {

@@ -164,14 +164,21 @@ MCP 服务器提供以下智能工具：
 
 ## 📚 文档
 
-- [快速开始指南](QUICK_START.md) - 5分钟上手 MCP
-- [MCP 使用演示](docs/MCP_USAGE_DEMO.md) - 🆕 完整实战演示，从零到精通
-- [项目结构说明](STRUCTURE.md) - 了解目录组织
-- [测试指南](TEST_GUIDE_v2.0.md) - 如何测试 MCP 服务
-- [项目组织规范](.project-rules.md) - 🆕 文件管理规范
-- [MCP 服务器使用指南](mcp-server/README.md) - 详细配置说明
-- [Agents 使用指南](AGENTS_GUIDE.md) - Custom Agents 指南
-- [最佳实践](BEST_PRACTICES.md) - 编码规范建议
+### 新手入门
+- [快速开始指南](docs/getting-started/QUICK_START.md) - 5分钟上手 MCP
+- [MCP 配置自动生效指南](docs/getting-started/MCP_AUTO_RELOAD.md) - 让配置立即生效
+
+### 使用指南
+- [MCP 使用演示](docs/MCP_USAGE_DEMO.md) - 完整实战演示，从零到精通
+- [Agents 使用指南](docs/guides/AGENTS_GUIDE.md) - Custom Agents 指南
+- [最佳实践](docs/guides/BEST_PRACTICES.md) - 编码规范建议
+- [MCP 服务器文档](mcp-server/README.md) - MCP 详细配置说明
+
+### 开发参考
+- [项目结构说明](docs/development/STRUCTURE.md) - 了解目录组织
+- [测试指南](docs/development/TEST_GUIDE_v2.0.md) - 如何测试 MCP 服务
+- [更新日志](docs/development/CHANGELOG.md) - 版本历史记录
+- [项目管理规范](docs/PROJECT_RULES.md) - 文件组织和维护规则 ⭐
 
 ## 💡 使用示例
 

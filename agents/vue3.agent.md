@@ -7,6 +7,19 @@ tools: ['edit', 'runNotebooks', 'search', 'new', 'runCommands', 'runTasks', 'usa
 
 **规范来源**: `prompts/vue/vue3-typescript.md`
 
+## ⚠️ 强制工作流
+
+**编写任何 Vue 3 代码前，必须先调用 MCP 工具加载规范：**
+
+```
+get_relevant_standards({ fileType: "vue" })
+```
+
+如果使用特定库，额外调用：
+- Element Plus: `get_relevant_standards({ imports: ["element-plus"] })`
+- Pinia: `get_relevant_standards({ imports: ["pinia"] })`
+- Vue Router: `get_relevant_standards({ imports: ["vue-router"] })`
+
 ## 核心原则
 
 1. **Composition API 优先** - `<script setup lang="ts">`

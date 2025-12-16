@@ -35,6 +35,21 @@ tools: ['edit', 'runNotebooks', 'search', 'new', 'runCommands', 'runTasks', 'com
 
 ## 🎯 快速参考
 
+### ⚠️ 强制工作流
+
+**在编写任何代码前，必须按顺序执行以下步骤：**
+
+1. **加载规范** (强制) - 根据文件类型调用 MCP 工具：
+   - Vue 文件: `get_relevant_standards({ fileType: "vue" })`
+   - TypeScript 文件: `get_relevant_standards({ fileType: "ts" })`
+   - Element Plus: `get_relevant_standards({ imports: ["element-plus"], config: "vitasage" })`
+   - Pinia: `get_relevant_standards({ imports: ["pinia"] })`
+   - API 调用: `get_relevant_standards({ scenario: "API 调用" })`
+
+2. **理解需求** - 确认要实现的功能
+3. **编写代码** - 严格遵循加载的规范
+4. **验证规范** - 确保代码符合所有规范要求
+
 ### 必须遵守的核心原则
 
 1. **最小改动** - 只修改必要代码，避免重构
