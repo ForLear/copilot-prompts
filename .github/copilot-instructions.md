@@ -77,5 +77,6 @@ get_relevant_standards({
 //       patterns/component-design
 ```
 
-更新时间: 2025年12月15日
+更新时间: 2025年12月16日
 配置版本: v1.2.0（MCP Resources 支持）
+维护团队: MTA团队（蘑菇与吐司的AI团队）

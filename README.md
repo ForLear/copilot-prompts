@@ -216,3 +216,8 @@ MIT License - 详见 [LICENSE](LICENSE) 文件
 - [GitHub 仓库](https://github.com/ForLear/copilot-prompts)
 - [问题反馈](https://github.com/ForLear/copilot-prompts/issues)
 - [更新日志](vscode-extension/CHANGELOG.md)
+
+---
+
+**维护团队**: MTA团队（蘑菇与吐司的AI团队）  
+**最后更新**: 2025-12-16
