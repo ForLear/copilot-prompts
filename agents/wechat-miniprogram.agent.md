@@ -451,6 +451,240 @@ function getStorageSync(key, defaultValue = null) {
 
 ---
 
+## 🖼️ 资源管理规范 ⚠️
+
+### 关键原则
+
+1. **禁止硬编码本地图片路径** - 避免路径不存在导致错误
+2. **优先使用 emoji/文字图标** - 无需加载资源，性能最优
+3. **外部图片需要备用方案** - 网络请求可能失败
+4. **占位图使用纯色背景** - 避免依赖外部服务
+
+### 图标资源
+
+```xml
+<!-- ❌ 错误：硬编码本地路径 -->
+<image src="/images/icons/search.png" />
+<image src="/images/icons/cart.png" />
+
+<!-- ✅ 正确：使用 emoji 图标 -->
+<text class="icon">🔍</text>  <!-- 搜索 -->
+<text class="icon">🛒</text>  <!-- 购物车 -->
+<text class="icon">✅</text>  <!-- 选中 -->
+<text class="icon">⭕</text>  <!-- 未选中 -->
+
+/* CSS 样式 */
+.icon {
+  font-size: 32rpx;
+  line-height: 1;
+}
+```
+
+### 商品图片
+
+```javascript
+// ❌ 错误：直接使用外部图片
+<image src="https://via.placeholder.com/400" />
+
+// ✅ 正确：带备用方案
+<image 
+  src="{{product.image || 'https://dummyimage.com/400x400/f5f5f5/cccccc?text=Product'}}" 
+  mode="aspectFill"
+  lazy-load
+/>
+
+// ✅ 更好：使用纯色背景 + 文字
+.product-image {
+  background-color: #f5f5f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ccc;
+}
+```
+
+### 横幅/Banner
+
+```xml
+<!-- ❌ 错误：依赖外部图片资源 -->
+<swiper>
+  <swiper-item wx:for="{{banners}}">
+    <image src="{{item.image}}" />  <!-- 可能加载失败 -->
+  </swiper-item>
+</swiper>
+
+<!-- ✅ 正确：使用纯色渐变背景 -->
+<view class="banner">
+  <text class="banner-title">🛒 美业商城</text>
+  <text class="banner-desc">精选美业服务</text>
+</view>
+
+/* CSS */
+.banner {
+  background: linear-gradient(135deg, #ff6034 0%, #ee0a24 100%);
+  /* 无需加载图片，性能最优 */
+}
+```
+
+---
+
+## ☁️ 云开发规范 🆕
+
+### 1. 环境初始化
+
+```javascript
+// app.js
+App({
+  onLaunch() {
+    // ✅ 正确：先检查再初始化
+    if (!wx.cloud) {
+      console.error('请使用 2.2.3 或以上的基础库以使用云能力')
+      return
+    }
+
+    try {
+      wx.cloud.init({
+        env: 'your-env-id',  // 从配置文件读取
+        traceUser: true
+      })
+      console.log('云开发初始化成功')
+    } catch (error) {
+      console.error('云开发初始化失败:', error)
+    }
+  }
+})
+```
+
+### 2. 数据库错误处理 ⚠️
+
+```javascript
+// ✅ 正确：检测数据库集合是否存在
+async fetchData() {
+  try {
+    const db = wx.cloud.database()
+    const res = await db.collection('products').get()
+    this.setData({ data: res.data })
+  } catch (error) {
+    console.error('查询失败:', error)
+    
+    // ⚠️ 关键：检测集合不存在错误
+    if (error.errCode === -502005 || 
+        error.message?.includes('collection not exists')) {
+      wx.showModal({
+        title: '数据库未初始化',
+        content: '请先在云开发控制台创建数据库集合',
+        confirmText: '查看教程',
+        success: (res) => {
+          if (res.confirm) {
+            // 跳转到配置引导页
+            wx.navigateTo({ url: '/pages/setup/setup' })
+          }
+        }
+      })
+    } else {
+      wx.showToast({ title: '加载失败', icon: 'none' })
+    }
+    
+    // ⚠️ 关键：清空旧数据，避免显示错误内容
+    if (this.data.page === 1) {
+      this.setData({ data: [] })
+    }
+  }
+}
+```
+
+### 3. 云数据库封装
+
+```javascript
+// utils/cloudDB.js
+class CloudDB {
+  constructor(collectionName) {
+    this.db = wx.cloud.database()
+    this.collection = this.db.collection(collectionName)
+  }
+
+  /**
+   * 查询列表（带错误处理）
+   */
+  async getList(options = {}) {
+    try {
+      const { page = 1, pageSize = 20, where = {} } = options
+      
+      // 分页查询
+      const res = await this.collection
+        .where(where)
+        .skip((page - 1) * pageSize)
+        .limit(pageSize)
+        .get()
+      
+      return {
+        data: res.data,
+        hasMore: res.data.length === pageSize
+      }
+    } catch (error) {
+      console.error('查询列表失败:', error)
+      throw error  // 向上抛出，由调用者处理
+    }
+  }
+}
+
+module.exports = { CloudDB }
+```
+
+### 4. 云函数开发
+
+```javascript
+// cloudfunctions/xxx/index.js
+const cloud = require('wx-server-sdk')
+cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
+
+exports.main = async (event, context) => {
+  const { OPENID } = cloud.getWXContext()
+  
+  try {
+    const db = cloud.database()
+    
+    // ✅ 关键：服务端验证数据
+    const { productId, price } = event
+    
+    // 验证价格（防止客户端篡改）
+    const product = await db.collection('products')
+      .doc(productId)
+      .get()
+    
+    if (product.data.price !== price) {
+      return {
+        success: false,
+        message: '价格不匹配'
+      }
+    }
+    
+    // 创建订单
+    const result = await db.collection('orders').add({
+      data: {
+        _openid: OPENID,
+        productId,
+        price,
+        createTime: new Date()
+      }
+    })
+    
+    return {
+      success: true,
+      orderId: result._id
+    }
+  } catch (error) {
+    console.error('云函数执行失败:', error)
+    return {
+      success: false,
+      message: error.message
+    }
+  }
+}
+```
+
+---
+
 ## 🎯 性能优化原则
 
 ### 1. setData 优化
@@ -643,6 +877,30 @@ async fetchData() {
     wx.showToast({ title: '加载失败', icon: 'none' })
   }
 }
+
+// ❌ 错误：在 catch 块中引用未定义的变量
+async fetchData() {
+  try {
+    const { page } = this.data  // page 只在 try 块中
+    // ...
+  } catch (error) {
+    if (page === 1) {  // ❌ ReferenceError: page is not defined
+      this.setData({ data: [] })
+    }
+  }
+}
+
+// ✅ 正确：使用 this.data 访问
+async fetchData() {
+  try {
+    const { page } = this.data
+    // ...
+  } catch (error) {
+    if (this.data.page === 1) {  // ✅ 正确
+      this.setData({ data: [] })
+    }
+  }
+}
 ```
 
 ### 性能陷阱
@@ -681,6 +939,27 @@ this.setData({
 3. **代码注释** - 为复杂逻辑添加注释
 4. **错误处理** - 所有异步操作都有 try-catch
 5. **用户反馈** - 操作结果有明确提示
+
+### 资源管理 🆕
+
+1. **禁止硬编码本地图片路径** - 避免 404 错误
+2. **优先使用 emoji** - 无需加载，性能最优
+3. **纯色背景替代图片** - CSS 渐变替代轮播图
+4. **图片加载失败处理** - 提供备用方案
+
+### 云开发规范 🆕
+
+1. **环境初始化检查** - 检测 wx.cloud 是否可用
+2. **数据库集合检测** - errCode -502005 特殊处理
+3. **友好错误提示** - 引导用户配置数据库
+4. **服务端数据验证** - 云函数中验证价格/库存
+5. **清空错误数据** - 失败后清空旧数据
+
+### 变量作用域 🆕
+
+1. **异步函数中避免使用局部变量** - 在 catch 中使用 this.data
+2. **解构赋值注意作用域** - const { page } 只在当前块有效
+3. **避免变量覆盖** - 不要在内层作用域重新声明同名变量
 
 ### 性能优化
 
