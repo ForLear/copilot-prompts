@@ -48,7 +48,8 @@ tools: ['edit', 'runNotebooks', 'search', 'new', 'runCommands', 'runTasks', 'com
 
 2. **理解需求** - 确认要实现的功能
 3. **编写代码** - 严格遵循加载的规范
-4. **验证规范** - 确保代码符合所有规范要求
+4. **验证代码** - 完成后必须检查语法完整性
+5. **最终确认** - 确保代码符合所有规范要求
 
 ### 必须遵守的核心原则
 
@@ -56,6 +57,207 @@ tools: ['edit', 'runNotebooks', 'search', 'new', 'runCommands', 'runTasks', 'com
 2. **类型安全** - 禁用 `any`，所有参数有类型
 3. **国际化强制** - 所有 UI 文本使用 `$t()`
 4. **错误处理** - try-catch-finally 三位一体
+5. **样式复用** - 使用公共样式类，禁止编写重复样式
+6. **代码完整性** - 每次编辑后验证标签配对和语法正确性
+
+### 🚨 代码编辑检查清单
+
+**在完成任何文件编辑后，必须执行以下检查：**
+
+#### Vue 文件检查
+- [ ] `<template>` 标签完整配对
+- [ ] `<script>` 标签完整配对
+- [ ] `<style>` 标签完整配对（**只能有一个**）
+- [ ] 没有重复的标签定义
+- [ ] 所有 HTML 标签正确闭合
+- [ ] 没有遗留的旧代码片段
+
+#### 常见错误模式（禁止出现）
+
+```vue
+<!-- ❌ 错误：多个 style 标签 -->
+<style>
+.old-class { }
+<style>
+.new-class { }
+</style>
+
+<!-- ❌ 错误：标签未关闭 -->
+<style>
+.some-class {
+  color: red;
+<!-- 缺少 </style> -->
+
+<!-- ❌ 错误：删除不完整，残留旧代码 -->
+<template>
+  <div class="new-layout">
+  <!-- 下面是旧代码，应该删除但被遗留 -->
+  <div class="old-menu">
+</template>
+
+<!-- ✅ 正确：清晰完整的单个 style 标签 -->
+<style scoped lang="stylus">
+.form-title {
+  font-weight: bold;
+}
+</style>
+```
+
+#### replace_string_in_file 使用规范
+
+**执行文件替换时必须：**
+1. **包含足够上下文** - oldString 包含替换位置前后 3-5 行代码
+2. **验证唯一性** - 确保 oldString 在文件中只匹配一处
+3. **完整性检查** - newString 必须包含完整的代码块（所有标签配对）
+4. **删除旧代码** - 删除时要彻底，不要遗留半截
+5. **重复验证** - 替换后读取相关行验证结果正确
+
+**错误案例：**
+```typescript
+// ❌ 错误：删除不完整，导致第一个 <style> 没有关闭
+oldString: `<style>
+  .old { }
+`
+newString: `<style>
+  .new { }
+</style>`
+// 问题：如果原文有两个 <style>，会导致第一个没有 </style>
+```
+
+**正确案例：**
+```typescript
+// ✅ 正确：完整删除整个旧 style 块
+oldString: `</script>
+
+<style lang="stylus" scoped>
+.old-menu { }
+/* ... 所有旧样式 ... */
+
+<style scoped lang="stylus">
+.new { }
+</style>`
+
+newString: `</script>
+
+<style scoped lang="stylus">
+.new { }
+</style>`
+```
+
+### VitaSage 公共样式系统
+
+**项目已在 `src/assets/base.css` 中定义了公共布局样式，必须优先使用这些样式。**
+
+#### 布局容器类
+
+```css
+/* 左右分栏容器 */
+.vs-container {
+  display: flex;
+  gap: 20px;
+}
+
+/* 左侧区域（50%宽度）*/
+.vs-left {
+  width: 50%;
+  flex: 1;
+}
+
+/* 右侧区域（50%宽度）*/
+.vs-right {
+  width: 50%;
+  flex: 1;
+}
+
+/* 左侧区域（65%宽度）*/
+.vs-left-65 {
+  width: 64%;
+  flex: 1;
+}
+
+/* 右侧区域（35%宽度）*/
+.vs-right-35 {
+  width: 34%;
+}
+```
+
+#### ✅ 正确使用示例（参考 classMain 模块）
+
+```vue
+<template>
+  <el-tabs v-model="activeName" type="border-card">
+    <el-tab-pane label="管理" name="manage">
+      <!-- 使用公共布局类 -->
+      <div class="vs-container">
+        <!-- 左侧表单区 -->
+        <div class="vs-left">
+          <el-form>
+            <!-- 表单内容 -->
+          </el-form>
+        </div>
+        
+        <!-- 右侧表格区 -->
+        <div class="vs-right">
+          <el-table>
+            <!-- 表格内容 -->
+          </el-table>
+        </div>
+      </div>
+    </el-tab-pane>
+  </el-tabs>
+</template>
+
+<style scoped lang="stylus">
+/* 只写必要的自定义样式，不要重复定义布局样式 */
+.form-title {
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+</style>
+```
+
+#### ❌ 禁止模式
+
+```vue
+<style scoped lang="stylus">
+/* ❌ 禁止：重复定义已存在的布局样式 */
+.split-container {
+  display: flex;
+  gap: 20px;
+}
+
+.split-left {
+  flex: 1;
+  width: 50%;
+}
+
+.split-right {
+  flex: 1;
+  width: 50%;
+}
+
+/* ❌ 禁止：自定义左侧菜单样式，应使用 el-tabs */
+.vs-left-menu {
+  width: 200px;
+  background-color: #fff;
+  /* ... 大量自定义样式 */
+}
+</style>
+```
+
+#### 样式使用规范
+
+**⚠️ 强制要求：**
+1. **优先使用公共样式** - 检查 `base.css` 是否已有对应样式
+2. **使用 Element Plus 组件** - 不要自己实现已有的 UI 组件（如 el-tabs 代替自定义菜单）
+3. **最小化自定义样式** - 仅在必要时添加少量特殊样式（通常不超过 20 行）
+4. **参考现有模块** - 参考 `classMain` 目录下的模块实现
+
+#### 常见布局场景
+
+1. **左右分栏（5:5）** - 使用 `vs-container` + `vs-left` + `vs-right`
+2. **左右分栏（6.5:3.5）** - 使用 `vs-container` + `vs-left-65` + `vs-right-35`
+3. **左侧菜单** - 使用 `<el-tabs type="border-card">`，不要自定义 menu div
 
 ### API 调用标准模式
 
