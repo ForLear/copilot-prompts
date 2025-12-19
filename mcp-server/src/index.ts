@@ -241,6 +241,16 @@ class CopilotPromptsMCPServer {
                 description: '是否自动匹配 Agents（默认 true）',
                 default: true,
               },
+              updateMode: {
+                type: 'string',
+                enum: ['merge', 'overwrite'],
+                description: '更新模式：merge-保留自定义内容（默认），overwrite-完全覆盖',
+                default: 'merge',
+              },
+              configId: {
+                type: 'string',
+                description: '配置方案ID（如 vitasage），会加载对应的详细规则',
+              },
             },
             required: ['projectPath'],
           },

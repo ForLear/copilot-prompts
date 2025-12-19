@@ -1,8 +1,13 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
 import { GitHubClient } from '../core/githubClient.js';
 import { SmartAgentMatcher } from '../core/smartAgentMatcher.js';
 import { ConsoleLogger, AgentMetadata } from '../core/types.js';
+
+// ES模块中获取__dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * 生成配置文件工具
@@ -11,6 +16,8 @@ export async function generateConfig(args: {
     projectPath: string;
     agentIds?: string[];
     autoMatch?: boolean;
+    updateMode?: 'merge' | 'overwrite'; // merge: 保留自定义内容, overwrite: 完全覆盖
+    configId?: string; // 配置方案ID (如 vitasage)
 }): Promise<{
     content: Array<{ type: string; text: string }>;
 }> {
@@ -48,23 +55,49 @@ export async function generateConfig(args: {
             
             logger.log('正在匹配 Agents...');
             
-            // 获取可用 Agents
-            const agentFiles = await githubClient.listDirectoryFiles('agents');
+            // 获取可用 Agents - 优先从本地文件系统
+            // 注意：编译后在 build/tools/, agents 目录在项目根的上一级
+            const agentsDir = path.join(__dirname, '../../../agents');
+            logger.log(`查找 Agents 目录: ${agentsDir}`);
             const availableAgents: AgentMetadata[] = [];
             
-            for (const file of agentFiles) {
-                if (file.name.endsWith('.agent.md')) {
-                    try {
-                        const content = await githubClient.fetchFileContent(file.path);
-                        const metadata = matcher.parseAgentMetadata(file.path, content);
-                        availableAgents.push(metadata);
-                    } catch (error) {
-                        logger.error(`解析 ${file.name} 失败`);
+            if (fs.existsSync(agentsDir)) {
+                logger.log('✅ 从本地加载 Agents');
+                // 从本地加载
+                const agentFiles = fs.readdirSync(agentsDir);
+                logger.log(`找到 ${agentFiles.length} 个文件`);
+                for (const file of agentFiles) {
+                    if (file.endsWith('.agent.md')) {
+                        try {
+                            const filePath = path.join(agentsDir, file);
+                            const content = fs.readFileSync(filePath, 'utf-8');
+                            const metadata = matcher.parseAgentMetadata(`agents/${file}`, content);
+                            availableAgents.push(metadata);
+                            logger.log(`✅ 加载 Agent: ${metadata.title}`);
+                        } catch (error) {
+                            logger.error(`解析 ${file} 失败`);
+                        }
+                    }
+                }
+            } else {
+                // 从GitHub加载（备用）
+                const agentFiles = await githubClient.listDirectoryFiles('agents');
+                for (const file of agentFiles) {
+                    if (file.name.endsWith('.agent.md')) {
+                        try {
+                            const content = await githubClient.fetchFileContent(file.path);
+                            const metadata = matcher.parseAgentMetadata(file.path, content);
+                            availableAgents.push(metadata);
+                        } catch (error) {
+                            logger.error(`解析 ${file.name} 失败`);
+                        }
                     }
                 }
             }
             
+            logger.log(`成功加载 ${availableAgents.length} 个 Agents`);
             selectedAgents = matcher.matchAgents(features, availableAgents);
+            logger.log(`匹配到 ${selectedAgents.length} 个 Agents`);
             selectedAgents = selectedAgents.slice(0, 5); // 取前5个
         }
         
@@ -73,11 +106,23 @@ export async function generateConfig(args: {
             logger.log(`使用指定的 Agents: ${args.agentIds.join(', ')}`);
             
             selectedAgents = [];
+            const agentsDir = path.join(__dirname, '../../../agents');
+            
             for (const id of args.agentIds) {
                 try {
-                    const agentPath = `agents/${id}.agent.md`;
-                    const content = await githubClient.fetchFileContent(agentPath);
-                    const metadata = matcher.parseAgentMetadata(agentPath, content);
+                    const localPath = path.join(agentsDir, `${id}.agent.md`);
+                    let content: string;
+                    
+                    if (fs.existsSync(localPath)) {
+                        // 从本地加载
+                        content = fs.readFileSync(localPath, 'utf-8');
+                    } else {
+                        // 从GitHub加载（备用）
+                        const agentPath = `agents/${id}.agent.md`;
+                        content = await githubClient.fetchFileContent(agentPath);
+                    }
+                    
+                    const metadata = matcher.parseAgentMetadata(`agents/${id}.agent.md`, content);
                     selectedAgents.push(metadata);
                 } catch (error) {
                     logger.error(`获取 Agent ${id} 失败: ${error}`);
@@ -102,19 +147,79 @@ export async function generateConfig(args: {
         const githubDir = path.join(args.projectPath, '.github');
         const configPath = path.join(githubDir, 'copilot-instructions.md');
 
+        // 检测已有配置的自定义内容
+        let existingCustomContent = '';
+        let existingConfig = '';
+        if (fs.existsSync(configPath)) {
+            existingConfig = fs.readFileSync(configPath, 'utf-8');
+            
+            // 提取自定义章节（标记为 CUSTOM 的内容）
+            const customMatch = existingConfig.match(/<!-- CUSTOM_START -->([\s\S]*?)<!-- CUSTOM_END -->/g);
+            if (customMatch) {
+                existingCustomContent = customMatch.join('\n\n');
+            }
+        }
+
         // 创建目录
         if (!fs.existsSync(githubDir)) {
             fs.mkdirSync(githubDir, { recursive: true });
         }
+        
+        const updateMode = args.updateMode || 'merge'; // 默认保护模式
 
         // 构建配置内容
-        let content = `<!-- ⚠️ 此文件由 Copilot Prompts MCP Server 自动生成 -->\n`;
-        content += `<!-- ⚠️ 请勿手动编辑，所有修改将在下次自动生成时被覆盖 -->\n\n`;
-        content += `# AI 开发指南\n\n`;
+        let content = '';
+        
+        if (updateMode === 'merge') {
+            content += `<!-- ⚠️ 此文件由 Copilot Prompts MCP Server 生成 -->\n`;
+            content += `<!-- ℹ️ 你可以添加自定义内容，使用 CUSTOM_START/CUSTOM_END 标记保护 -->\n`;
+            content += `<!-- 示例: -->\n`;
+            content += `<!-- CUSTOM_START -->\n`;
+            content += `<!-- 你的自定义规范 -->\n`;
+            content += `<!-- CUSTOM_END -->\n\n`;
+        } else {
+            content += `<!-- ⚠️ 此文件由 Copilot Prompts MCP Server 自动生成 -->\n`;
+            content += `<!-- ⚠️ 使用 --update-mode merge 可保护自定义内容 -->\n\n`;
+        }
+
+        content += `# 项目开发规范 - Copilot 指令\n\n`;
         content += `> 📌 **自动配置信息**\n`;
         content += `> - 生成时间: ${new Date().toLocaleString('zh-CN')}\n`;
         content += `> - 匹配的 Agents: ${selectedAgents.length} 个\n\n`;
         content += `---\n\n`;
+        
+        // 加载配置方案的详细规则
+        if (args.configId) {
+            try {
+                const configFilePath = path.join(__dirname, '../../../configs', `element-plus-${args.configId}.json`);
+                if (fs.existsSync(configFilePath)) {
+                    const configData = JSON.parse(fs.readFileSync(configFilePath, 'utf-8'));
+                    
+                    content += `## 📦 配置方案\n\n`;
+                    content += `**方案ID**: ${configData.configId}\n`;
+                    content += `**名称**: ${configData.name}\n`;
+                    content += `**描述**: ${configData.description}\n`;
+                    content += `**维护者**: ${configData.maintainer}\n\n`;
+                    
+                    // 添加重要规则摘要
+                    if (configData.rules && configData.rules.table) {
+                        content += `### 表格组件规范\n\n`;
+                        const tableRules = configData.rules.table;
+                        if (tableRules.border) content += `- ✅ **必须添加 border**\n`;
+                        if (tableRules['highlight-current-row']) content += `- ✅ **必须高亮当前行**\n`;
+                        if (tableRules['v-loading']) content += `- ✅ **加载状态变量**: \`${tableRules['v-loading'].variable}\`\n`;
+                        content += `\n`;
+                    }
+                    
+                    content += `> 详细规则请参考: \`configs/element-plus-${args.configId}.json\`\n\n`;
+                    content += `---\n\n`;
+                    
+                    logger.log(`✅ 已加载配置方案: ${configData.name}`);
+                }
+            } catch (error) {
+                logger.error(`加载配置方案失败: ${error}`);
+            }
+        }
         
         // 添加强制工作流说明
         content += `## ⚠️ 强制工作流\n\n`;
@@ -135,18 +240,35 @@ export async function generateConfig(args: {
         content += `1. ✅ **强制**: 加载规范 → 2. 理解需求 → 3. 编写代码 → 4. 验证规范\n\n`;
         content += `---\n\n`;
 
-        // 添加 Agents 内容
+        // ⚠️ 核心设计原则：最小化配置 (选项 1)
+        // 只记录 Agent 引用信息，不嵌入完整内容
+        // Copilot 将通过 MCP 工具 get_relevant_standards 实时加载规范
+        // 此设计为底层逻辑，除非明确要求，否则不可修改
+        
+        content += `## 📚 配置的 Agents\n\n`;
+        content += `本项目使用以下 Agents（规范内容由 Copilot 通过 MCP 工具实时加载）：\n\n`;
+        
         for (const agent of selectedAgents) {
-            content += `<!-- Source: ${agent.path} -->\n\n`;
+            content += `### ${agent.title}\n\n`;
+            content += `- **Agent ID**: \`${agent.id}\`\n`;
+            content += `- **描述**: ${agent.description || '暂无描述'}\n`;
+            content += `- **来源**: \`${agent.path}\`\n`;
             
-            try {
-                const agentContent = await githubClient.fetchFileContent(agent.path);
-                content += agentContent;
-            } catch (error) {
-                content += `_无法获取 ${agent.title} 的内容_\n`;
+            // 如果有标签，显示标签
+            if (agent.tags && agent.tags.length > 0) {
+                content += `- **标签**: ${agent.tags.join(', ')}\n`;
             }
             
-            content += `\n\n---\n\n`;
+            content += `\n> 💡 **使用方式**: 在开发时，Copilot 会自动通过 MCP 工具加载此 Agent 的完整规范。\n\n`;
+        }
+        
+        content += `---\n\n`;
+        
+        // 附加自定义内容（如果是merge模式）
+        if (updateMode === 'merge' && existingCustomContent) {
+            content += `\n\n## 📝 自定义规范\n\n`;
+            content += existingCustomContent;
+            logger.log('✅ 已保留自定义内容');
         }
 
         // 写入文件
