@@ -69,8 +69,32 @@ tools: ['edit', 'runNotebooks', 'search', 'new', 'runCommands', 'runTasks', 'com
 - [ ] `<script>` 标签完整配对
 - [ ] `<style>` 标签完整配对（**只能有一个**）
 - [ ] 没有重复的标签定义
-- [ ] 所有 HTML 标签正确闭合
+- [ ] 所有 HTML 标签正确闭合（每个`<div>`都有对应`</div>`）
+- [ ] Element Plus 组件标签属性不换行（单行书写）
 - [ ] 没有遗留的旧代码片段
+
+#### Element Plus 组件属性格式规范
+
+**❌ 错误：属性换行**
+```vue
+<el-table 
+  v-loading="listLoading" 
+  :data="list" 
+  border 
+  highlight-current-row
+  @current-change="handleRowClick"
+  max-height="400">
+```
+
+**✅ 正确：属性单行书写**
+```vue
+<el-table v-loading="listLoading" :data="list" border highlight-current-row @current-change="handleRowClick" max-height="400">
+```
+
+**原因**：
+1. 保持代码紧凑，减少行数
+2. 避免因属性换行导致的标签配对问题
+3. 提高可读性和维护性
 
 #### 常见错误模式（禁止出现）
 
@@ -88,6 +112,13 @@ tools: ['edit', 'runNotebooks', 'search', 'new', 'runCommands', 'runTasks', 'com
   color: red;
 <!-- 缺少 </style> -->
 
+<!-- ❌ 错误：div 标签配对错误 -->
+<div class="wrapper">
+  <div class="content">
+    <el-table></el-table>
+  <!-- 缺少 </div> 闭合 content -->
+</div>
+
 <!-- ❌ 错误：删除不完整，残留旧代码 -->
 <template>
   <div class="new-layout">
@@ -101,6 +132,13 @@ tools: ['edit', 'runNotebooks', 'search', 'new', 'runCommands', 'runTasks', 'com
   font-weight: bold;
 }
 </style>
+
+<!-- ✅ 正确：所有 div 标签配对 -->
+<div class="wrapper">
+  <div class="content">
+    <el-table></el-table>
+  </div>
+</div>
 ```
 
 #### replace_string_in_file 使用规范
