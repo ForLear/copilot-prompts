@@ -20,13 +20,13 @@ import { healthCheck } from './tools/healthCheck.js';
 import { StandardsManager } from './core/standardsManager.js';
 import { CodeValidator } from './core/codeValidator.js';
 
-const SERVER_VERSION = '1.5.0'; // v1.1.0 更新
+const SERVER_VERSION = '1.7.0'; // v1.3.0 更新
 
 /**
  * Copilot Prompts MCP Server
  * 智能项目分析和编码规范服务
  * 
- * @version 1.5.0
+ * @version 1.7.0
  * @features
  * - 项目技术栈自动检测
  * - 智能 Agent 匹配推荐

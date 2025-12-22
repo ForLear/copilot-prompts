@@ -20,5 +20,63 @@
             "根据用户反馈优化验证规则",
             "考虑添加更多编程语言的语法检查"
         ]
+    },
+    "v1.2.0": {
+        "status": "✅ 已完成 (2025-12-19)",
+        "rules": ["不要更改admin-rules.json文件的格式和内容结构", "确保每次更新后，admin-rules.json文件的语法正确且可被系统正确解析。", "启动mcp服务器时，请务必遵守底层规则。", "请帮我将各个项目、框架、语言的规则中通用的部分整理出来，作为必须加载的底层规则。"],
+        "implementations": [
+            "✅ 在 standardsManager.ts 中添加 MANDATORY_CORE_STANDARDS 常量",
+            "✅ 定义3个底层必须加载的核心规范：code-style、typescript-base、code-generation",
+            "✅ 确保 getRelevantStandards 方法始终加载这些核心规范（权重100）",
+            "✅ 更新版本号到 1.6.0 (package.json, index.ts)",
+            "✅ 保证所有项目、框架、语言的通用编码规范始终生效"
+        ],
+        "impact": [
+            "所有调用 get_relevant_standards 工具的场景都会自动包含核心规范",
+            "即使用户没有指定 fileType/imports/scenario，也能获得基础代码质量保障",
+            "确保代码风格、TypeScript类型、注释文档等基础规范始终被遵守"
+        ]
+    },
+    "v1.3.0": {
+        "status": "✅ 已完成 (2025-12-22)",
+        "rules": ["TS或JS中，单行注释请确保使用//而非/** */并确保注释内容清晰且有意义", "不要生成md文档，除非用户明确要求生成说明文档、配置文档等。", "以上两条规则请作为底层强制规则应用到mcp服务器中。"],
+        "implementations": [
+            "✅ 更新 standards/core/code-style.md 添加单行注释格式规范",
+            "✅ 更新 standards/core/code-generation.md 强化文档生成限制",
+            "✅ 明确单行注释必须使用 // 而非 /** */",
+            "✅ 强调注释内容必须清晰且有意义（说明为什么而非做什么）",
+            "✅ 禁止自动创建 Markdown 文档（除非用户明确要求）",
+            "✅ 更新版本号到 1.7.0 (package.json, index.ts)",
+            "✅ 更新 CHANGELOG.md"
+        ],
+        "impact": [
+            "所有 TypeScript/JavaScript 代码生成都会遵循单行注释使用 // 的规范",
+            "不会自动生成 USAGE.md、GUIDE.md 等文档文件",
+            "注释质量提升，避免无意义的重复性注释",
+            "代码库保持清洁，减少不必要的文档维护负担"
+        ]
+    },
+    "v1.4.0": {
+        "status": "✅ 已完成 (2025-12-22)",
+        "rules": [
+            "版本迭代时生成的文档、测试文件等要统一放到 archive/ 目录下",
+            "mcp-server 目录下只保留核心文件：README.md、CHANGELOG.md、package.json、tsconfig.json、src/、build/",
+            "历史文档放到 archive/docs/",
+            "测试文件放到 archive/tests/",
+            "保持项目目录清洁，避免过多临时文件充斥根目录"
+        ],
+        "implementations": [
+            "✅ 创建 archive/docs/ 和 archive/tests/ 目录",
+            "✅ 移动 CLAUDE_SETUP.md、DEVELOPMENT_ROADMAP.md、GETTING_STARTED.md 等历史文档到 archive/docs/",
+            "✅ 移动 MIGRATION_GUIDE.md、TROUBLESHOOTING.md、USAGE_GUIDE.md 到 archive/docs/",
+            "✅ 移动所有 test-*.cjs 和 test-*.sh 文件到 archive/tests/",
+            "✅ mcp-server 根目录保持清洁，只保留必要文件"
+        ],
+        "impact": [
+            "项目目录更清晰，易于维护",
+            "历史文档和测试文件有序归档",
+            "新用户更容易找到核心文档（README.md、CHANGELOG.md）",
+            "减少根目录文件数量，提升可读性"
+        ]
     }
 }

@@ -1,12 +1,12 @@
-# 代码生成规范
+# 代码生成规范（v1.3.0 更新）
 
 ## 核心原则
 
 生成代码时必须遵循以下原则：
 
-### 1. 禁止创建 Markdown 文档
+### 1. 禁止创建 Markdown 文档（v1.3.0 强制规则）
 
-**除非用户明确要求，否则不要创建任何 .md 文件**
+**⚠️ 除非用户明确要求，否则不要创建任何 .md 文件**
 
 ```
 ❌ 禁止自动创建：
@@ -16,11 +16,13 @@
 - CHANGELOG.md
 - API.md
 - NOTES.md
+- INSTRUCTIONS.md
+- SETUP.md
 - 任何其他文档文件
 
 ✅ 允许创建（仅在明确要求时）：
-- README.md（项目初始化时）
-- 用户明确指定的文档
+- README.md（项目初始化时或用户明确要求）
+- 用户明确说"生成文档"、"创建说明"、"写一个配置文档"
 - 修改现有的文档文件
 ```
 
@@ -30,7 +32,60 @@
 - 减少维护负担
 - 保持项目目录清洁
 
-### 2. 重要代码必须添加注释
+**正确做法：**
+```typescript
+// ✅ 在代码中添加详细注释
+/**
+ * 用户服务类
+ * 
+ * 使用方法：
+ * 1. 导入：import { UserService } from './userService'
+ * 2. 创建实例：const service = new UserService()
+ * 3. 调用方法：await service.getUser(userId)
+ */
+class UserService {
+  // 实现...
+}
+```
+
+### 2. 注释格式规范（v1.3.0 强制规则）
+
+**⚠️ TypeScript/JavaScript 中单行注释必须使用 `//`**
+
+```typescript
+// ✅ 正确：单行注释使用 //
+// 使用缓存避免重复请求
+const cachedData = cache.get(key)
+
+// ✅ 正确：多行文档注释使用 /** */
+/**
+ * 获取用户信息
+ * @param userId 用户ID
+ * @returns 用户信息对象
+ */
+function getUserInfo(userId: number) {}
+
+// ❌ 错误：单行注释不要使用 /** */
+/** 使用缓存避免重复请求 */
+const cachedData = cache.get(key)
+```
+
+**注释必须清晰且有意义：**
+```typescript
+// ✅ 好：说明为什么
+// 使用 WeakMap 避免内存泄漏
+const cache = new WeakMap()
+
+// ❌ 坏：重复代码
+// 创建 WeakMap
+const cache = new WeakMap()
+
+// ❌ 坏：无意义的注释
+// 定义变量
+const count = 0
+```
+
+### 3. 重要代码必须添加注释
 
 所有重要代码部分都需要注释：
 

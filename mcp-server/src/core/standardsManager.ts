@@ -42,6 +42,13 @@ interface PerformanceMetrics {
 export class StandardsManager {
   private standardsPath: string;
   
+  // v1.2.0: 底层必须加载的核心规范
+  private readonly MANDATORY_CORE_STANDARDS = [
+    'standards://core/code-style',      // 代码风格规范（命名、格式等）
+    'standards://core/typescript-base',  // TypeScript基础规范
+    'standards://core/code-generation'   // 代码生成规范（注释、文档等）
+  ];
+  
   // Phase 3: 缓存系统
   private contentCache: Map<string, CacheEntry> = new Map();
   private readonly CACHE_DURATION = 30 * 60 * 1000; // 30分钟
@@ -204,10 +211,10 @@ export class StandardsManager {
       THRESHOLD: 10        // 最低阈值
     };
     
-    // 始终包含核心规范
-    standardScores.set('standards://core/code-style', WEIGHTS.CORE);
-    standardScores.set('standards://core/typescript-base', WEIGHTS.CORE);
-    standardScores.set('standards://core/code-generation', WEIGHTS.CORE);
+    // v1.2.0: 始终包含底层必须加载的核心规范
+    this.MANDATORY_CORE_STANDARDS.forEach(standard => {
+      standardScores.set(standard, WEIGHTS.CORE);
+    });
     
     // 自动检测导入（如果提供了文件内容）
     let detectedImports = context.imports || [];

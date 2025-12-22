@@ -6,6 +6,115 @@
 
 ---
 
+## [1.7.0] - 2025-12-22
+
+### 🧹 v1.4.0 更新：项目目录清理与归档
+
+#### 📂 目录结构优化
+
+- **创建归档目录**
+  - 新建 `archive/docs/` 存放历史文档
+  - 新建 `archive/tests/` 存放测试文件
+  
+- **文档归档**
+  - 移动 CLAUDE_SETUP.md → archive/docs/
+  - 移动 DEVELOPMENT_ROADMAP.md → archive/docs/
+  - 移动 GETTING_STARTED.md → archive/docs/
+  - 移动 MIGRATION_GUIDE.md → archive/docs/
+  - 移动 TROUBLESHOOTING.md → archive/docs/
+  - 移动 USAGE_GUIDE.md → archive/docs/
+  
+- **测试文件归档**
+  - 移动所有 test-*.cjs 文件 → archive/tests/
+  - 移动所有 test-*.sh 文件 → archive/tests/
+
+#### 🎯 目录规范
+
+**mcp-server 根目录现在只保留：**
+- README.md - 主要文档
+- CHANGELOG.md - 版本变更记录
+- package.json - 项目配置
+- tsconfig.json - TypeScript 配置
+- src/ - 源代码
+- build/ - 编译输出
+- archive/ - 历史文件归档
+
+#### 💡 影响范围
+
+- 项目目录更清晰、易于维护
+- 新用户更容易找到核心文档
+- 历史文档和测试文件有序归档
+- 符合 v1.3.0 不生成多余文档的规范
+
+---
+
+### 🎯 v1.3.0 更新：注释与文档生成规范
+
+#### ✨ 新增底层强制规则
+
+- **注释格式规范**
+  - ⚠️ TypeScript/JavaScript 中单行注释必须使用 `//` 而非 `/** */`
+  - 注释内容必须清晰且有意义
+  - 说明「为什么」而非「做什么」
+  - 避免无意义的重复性注释
+  
+- **文档生成限制**
+  - ⚠️ 禁止自动创建 Markdown 文档（除非用户明确要求）
+  - 不生成 USAGE.md、GUIDE.md、NOTES.md 等文件
+  - 仅在以下情况创建文档：
+    - 用户明确说「生成文档」、「创建说明」等
+    - 项目初始化需要 README.md
+    - 修改现有文档文件
+  - 默认在代码中添加详细注释而非创建额外文档
+
+#### 📝 规范文件更新
+
+- 更新 `standards/core/code-style.md`
+  - 添加单行注释格式强制规则
+  - 强化文档创建规范说明
+  - 提供清晰的注释示例对比
+  
+- 更新 `standards/core/code-generation.md`
+  - 强化禁止创建文档的规则
+  - 添加注释格式规范章节
+  - 明确何时可以创建文档的场景
+
+#### 🎯 影响范围
+
+- 所有生成 TypeScript/JavaScript 代码的场景
+- 确保注释风格专业、统一、有意义
+- 减少不必要的文档文件生成
+- 保持代码库清洁、易维护
+
+---
+
+## [1.6.0] - 2025-12-19
+
+### 🎯 v1.2.0 更新：底层核心规范强制加载
+
+#### ✨ 新增功能
+
+- **底层必须规范系统**
+  - 新增 `MANDATORY_CORE_STANDARDS` 常量，定义3个底层核心规范
+  - 强制加载通用编码规范，确保基础代码质量
+  - 核心规范列表：
+    - `standards://core/code-style` - 代码风格规范（命名、格式等）
+    - `standards://core/typescript-base` - TypeScript基础规范
+    - `standards://core/code-generation` - 代码生成规范（注释、文档等）
+
+- **智能规范加载增强**
+  - `getRelevantStandards` 方法始终包含核心规范（权重100）
+  - 无论用户输入什么场景/文件类型，都能获得基础质量保障
+  - 避免遗漏基本编码规范的情况
+
+#### 🎯 影响范围
+
+- 所有调用 `get_relevant_standards` MCP工具的场景
+- 确保代码风格、类型安全、注释文档等基础规范始终生效
+- 提升各项目、框架、语言之间的编码一致性
+
+---
+
 ## [1.5.0] - 2025-12-19
 
 ### 🛡️ v1.1.0 更新：代码质量保障
