@@ -225,6 +225,7 @@ generate_copilot_instructions() {
     
     local github_dir="$project_path/.github"
     local instructions_file="$github_dir/copilot-instructions.md"
+    local project_name=$(basename "$project_path")
     
     mkdir -p "$github_dir"
     
@@ -238,7 +239,33 @@ generate_copilot_instructions() {
 <!-- 你的自定义规范 -->
 <!-- CUSTOM_END -->
 
+EOF
+
+    # 添加作用域声明 - 防止跨项目污染
+    cat >> "$instructions_file" << EOF
+<!-- 🎯 作用域：此配置仅适用于当前项目 -->
+<!-- 项目名称: $project_name -->
+<!-- 项目路径: $project_path -->
+
+EOF
+
+    cat >> "$instructions_file" << 'EOF'
 # 项目开发规范 - Copilot 指令
+
+EOF
+
+    # 添加 AI 可识别的作用域限制
+    cat >> "$instructions_file" << EOF
+## 🎯 作用域限制
+
+**⚠️ 此配置仅在以下情况生效：**
+
+1. 当前编辑的文件路径包含: \`/$project_name/\`
+2. 或当前工作目录为: \`$project_path\`
+
+**如果你在其他项目工作（如 $project_name 之外的项目），请完全忽略此配置文件中的所有规范和指令。**
+
+---
 
 EOF
 

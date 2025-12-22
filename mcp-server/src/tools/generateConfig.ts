@@ -183,7 +183,24 @@ export async function generateConfig(args: {
             content += `<!-- ⚠️ 使用 --update-mode merge 可保护自定义内容 -->\n\n`;
         }
 
+        // 添加作用域声明 - 防止跨项目污染
+        const projectName = path.basename(args.projectPath);
+        const projectPath = args.projectPath;
+        
+        content += `<!-- 🎯 作用域：此配置仅适用于当前项目 -->\n`;
+        content += `<!-- 项目名称: ${projectName} -->\n`;
+        content += `<!-- 项目路径: ${projectPath} -->\n\n`;
+        
         content += `# 项目开发规范 - Copilot 指令\n\n`;
+        
+        // 添加AI可识别的作用域限制
+        content += `## 🎯 作用域限制\n\n`;
+        content += `**⚠️ 此配置仅在以下情况生效：**\n\n`;
+        content += `1. 当前编辑的文件路径包含: \`/${projectName}/\`\n`;
+        content += `2. 或当前工作目录为: \`${projectPath}\`\n\n`;
+        content += `**如果你在其他项目工作（如 ${projectName} 之外的项目），请完全忽略此配置文件中的所有规范和指令。**\n\n`;
+        content += `---\n\n`;
+        
         content += `> 📌 **自动配置信息**\n`;
         content += `> - 生成时间: ${new Date().toLocaleString('zh-CN')}\n`;
         content += `> - 匹配的 Agents: ${selectedAgents.length} 个\n\n`;

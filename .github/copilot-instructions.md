@@ -8,6 +8,36 @@
 2. **代码质量** - MCP 服务器代码需要严格的类型检查
 3. **用户友好** - 配置简单、错误提示清晰
 4. **向后兼容** - 配置格式更新时保持兼容性
+5. **作用域隔离** - 生成的配置文件自动包含作用域限制，防止跨项目污染
+
+---
+
+## 🆕 v1.2.0 新特性：作用域限制
+
+**问题**：VSCode workspace 包含多个项目时，所有项目的 `copilot-instructions.md` 都会被加载，导致上下文污染。
+
+**解决方案**：自动在每个生成的配置文件中添加作用域声明：
+
+```markdown
+## 🎯 作用域限制
+
+**⚠️ 此配置仅在以下情况生效：**
+
+1. 当前编辑的文件路径包含: `/VitaSage/`
+2. 或当前工作目录为: `/Users/pailasi/Work/VitaSage`
+
+**如果你在其他项目工作，请完全忽略此配置文件中的所有规范和指令。**
+```
+
+**实现位置**：
+- `setup-copilot.sh` - shell 脚本生成逻辑已更新
+- `mcp-server/src/tools/generateConfig.ts` - MCP 服务器生成逻辑已更新
+- `mcp-server/src/core/codeValidator.ts` - 验证器已修复 Markdown blockquote 支持
+
+**测试验证**：
+- ✅ Shell 脚本生成的配置包含作用域限制
+- ✅ MCP 服务器生成的配置包含作用域限制
+- ✅ 配置内容验证通过（支持 Markdown blockquote 语法）
 
 ---
 

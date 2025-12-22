@@ -127,8 +127,19 @@ export class CodeValidator {
                 continue;
             }
             
+            // 跳过 Markdown blockquote 行（以 > 开头）
+            if (line.trim().startsWith('>')) {
+                continue;
+            }
+            
             for (let col = 0; col < line.length; col++) {
                 const char = line[col];
+                
+                // 跳过 Markdown blockquote 的 > 符号
+                if (char === '>' && (col === 0 || line[col - 1] === ' ') && 
+                    (col === line.length - 1 || line[col + 1] === ' ')) {
+                    continue;
+                }
                 
                 if (char in brackets) {
                     stack.push({ char, line: lineNum + 1, col: col + 1 });
