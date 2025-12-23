@@ -46,7 +46,7 @@ show_usage() {
   $0 [选项] <项目路径>
 
 选项:
-  -c, --config <配置ID>    使用指定的配置方案（如 vitasage）
+  -c, --config <配置ID>    使用指定的配置方案（如 strict）
   -a, --auto              自动分析项目并生成配置
   -l, --list              列出所有可用配置
   -h, --help              显示帮助信息
@@ -54,7 +54,7 @@ show_usage() {
 示例:
   $0 /path/to/project                    # 交互式配置
   $0 -a /path/to/project                 # 自动分析并配置
-  $0 -c vitasage /path/to/VitaSage      # 使用 vitasage 配置
+  $0 -c strict /path/to/project          # 使用严格配置（单行书写+强制国际化）
   $0 -l                                  # 列出可用配置
 
 EOF
@@ -173,6 +173,56 @@ detect_tech_stack() {
     fi
     
     echo "${tech_stack[@]}"
+}
+
+# 自动检测代码风格（判断是否应该使用 strict 配置）
+detect_code_style() {
+    local project_path=$1
+    local single_line_count=0
+    local multi_line_count=0
+    local total_count=0
+    
+    # 检查是否有 Vue 文件
+    if [ ! -d "$project_path/src" ]; then
+        echo "standard"
+        return
+    fi
+    
+    # 查找 Vue 文件中的 Element Plus 组件
+    # 检测 <el- 开头的标签，统计单行和多行写法的数量
+    while IFS= read -r vue_file; do
+        if [ -f "$vue_file" ]; then
+            # 查找 <el- 开头的行
+            while IFS= read -r line; do
+                # 检查这一行是否包含结束标签 > 或 />
+                if echo "$line" | grep -q '<el-.*[/>]'; then
+                    # 单行写法（开始标签和属性在同一行）
+                    ((single_line_count++))
+                    ((total_count++))
+                elif echo "$line" | grep -q '<el-'; then
+                    # 可能是多行写法的开始
+                    ((multi_line_count++))
+                    ((total_count++))
+                fi
+            done < <(grep -n '<el-' "$vue_file" 2>/dev/null || true)
+        fi
+    done < <(find "$project_path/src" -name "*.vue" 2>/dev/null | head -20 || true)
+    
+    # 如果没有检测到任何 Element Plus 组件，使用 standard
+    if [ $total_count -eq 0 ]; then
+        echo "standard"
+        return
+    fi
+    
+    # 计算单行写法的比例
+    local single_line_ratio=$((single_line_count * 100 / total_count))
+    
+    # 如果单行写法占比超过 60%，使用 strict 配置
+    if [ $single_line_ratio -gt 60 ]; then
+        echo "strict"
+    else
+        echo "standard"
+    fi
 }
 
 # 配置 VS Code MCP
@@ -383,12 +433,13 @@ EOF
 - **配置方案**: $config_id
 EOF
         
-        if [ "$config_id" = "vitasage" ]; then
+        if [ "$config_id" = "strict" ]; then
             cat >> "$instructions_file" << 'EOF'
 - **关键要求**: 
   - 表格必须添加 border
   - 表格必须高亮当前行
   - 所有文本必须国际化
+  - 组件属性使用单行书写
 EOF
         fi
         cat >> "$instructions_file" << 'EOF'
@@ -519,8 +570,16 @@ main() {
         if [ "$auto_detect" = true ]; then
             # 自动选择配置
             if [[ "$tech_stack" == *"element-plus"* ]]; then
-                config_id="standard"
-                print_info "自动选择配置: $config_id"
+                # 检测代码风格
+                print_info "正在分析代码风格..."
+                detected_style=$(detect_code_style "$project_path")
+                config_id="$detected_style"
+                
+                if [ "$config_id" = "strict" ]; then
+                    print_info "✓ 检测到单行书写风格，使用严格配置"
+                else
+                    print_info "✓ 检测到标准风格，使用标准配置"
+                fi
             else
                 config_id="generic"
                 print_info "使用通用配置: $config_id"
@@ -528,14 +587,14 @@ main() {
         else
             # 交互式选择
             echo "请选择配置方案:"
-            echo "  1) standard - 标准配置"
-            echo "  2) vitasage - VitaSage 配置"
+            echo "  1) standard - 标准配置（Element Plus 官方推荐）"
+            echo "  2) strict - 严格配置（单行书写+强制国际化）"
             echo "  3) custom - 自定义配置"
             read -p "请输入选项 (1-3): " choice
             
             case $choice in
                 1) config_id="standard" ;;
-                2) config_id="vitasage" ;;
+                2) config_id="strict" ;;
                 3) 
                     read -p "请输入自定义配置 ID: " config_id
                     ;;

@@ -18,7 +18,7 @@ export async function generateConfig(args: {
     agentIds?: string[];
     autoMatch?: boolean;
     updateMode?: 'merge' | 'overwrite'; // merge: 保留自定义内容, overwrite: 完全覆盖
-    configId?: string; // 配置方案ID (如 vitasage)
+    configId?: string; // 配置方案ID (如 strict)
 }): Promise<{
     content: Array<{ type: string; text: string }>;
 }> {

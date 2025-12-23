@@ -262,7 +262,7 @@ class CopilotPromptsMCPServer {
               },
               configId: {
                 type: 'string',
-                description: '配置方案ID（如 vitasage），会加载对应的详细规则',
+                description: '配置方案ID（如 strict），会加载对应的详细规则',
               },
             },
             required: ['projectPath'],
