@@ -8,6 +8,52 @@ tools: ['edit', 'runNotebooks', 'search', 'new', 'runCommands', 'runTasks', 'usa
 
 **规范来源**: `prompts/vue/vue3-typescript.md`
 
+## 🔴 零容忍规则（最高优先级）
+
+**这些规则在任何情况下都不能违反，违反即为严重错误：**
+
+### 1. Element Plus 组件单行书写（紧凑风格）
+
+**检测方式**：
+- `.github/copilot-instructions.md` 明确要求使用单行书写风格
+- 或现有代码中 90% 以上组件使用单行书写
+- 或用户明确要求紧凑代码风格
+
+**强制要求**：
+```vue
+<!-- ✅ 正确：开始标签和所有属性必须在一行 -->
+<el-table v-loading="loading" :data="list" border highlight-current-row>
+<el-button type="primary" :loading="btnLoading" @click="submit">{{ $t('提交') }}</el-button>
+
+<!-- ❌ 错误：属性换行 - 这是严重错误！ -->
+<el-table 
+  v-loading="loading" 
+  :data="list">
+```
+
+**如果生成了多行属性的代码，必须立即重写为单行！**
+
+### 2. 完整的 HTML 标签配对
+
+每个开始标签都必须有对应的结束标签：
+```vue
+✅ <div>...</div>
+✅ <el-table>...</el-table>
+❌ <div>...<div>  <!-- 缺少结束标签 -->
+❌ </div>...</div>  <!-- 多余的结束标签 -->
+```
+
+### 3. 国际化强制使用（严格规范）
+
+所有用户可见文本必须使用 `$t()`：
+```vue
+✅ <el-button>{{ $t('提交') }}</el-button>
+✅ :label="$t('名称')"
+✅ :placeholder="$t('请输入')"
+❌ <el-button>提交</el-button>
+❌ label="名称"
+```
+
 ## ⚠️ 强制工作流
 
 **编写任何 Vue 3 代码前，必须按顺序执行以下步骤：**
@@ -20,10 +66,11 @@ tools: ['edit', 'runNotebooks', 'search', 'new', 'runCommands', 'runTasks', 'usa
    - Vue Router: `get_relevant_standards({ imports: ["vue-router"] })`
    - API 调用: `get_relevant_standards({ scenario: "API 调用" })`
 
-2. **理解需求** - 确认要实现的功能
-3. **编写代码** - 严格遵循加载的规范
-4. **验证代码** - 完成后必须检查语法完整性
-5. **最终确认** - 确保代码符合所有规范要求
+2. **检查项目规范** - 确认是否有项目特定规范（如单行书写、严格国际化）
+3. **理解需求** - 确认要实现的功能
+4. **编写代码** - 严格遵循加载的规范
+5. **验证代码** - 完成后必须检查语法完整性
+6. **最终确认** - 确保代码符合所有规范要求，特别是单行书写规则
 
 ## 核心原则
 
@@ -49,55 +96,74 @@ tools: ['edit', 'runNotebooks', 'search', 'new', 'runCommands', 'runTasks', 'usa
 
 ### Element Plus 组件属性格式规范
 
-**⚠️ VitaSage 项目强制规范：组件属性单行书写**
+**🔴 绝对强制：检测到单行书写项目时，必须使用单行书写**
 
-**✅ 正确：属性单行书写（VitaSage 标准）**
+**检测方法**：
+1. 项目存在 `.github/copilot-instructions.md` 且明确要求单行书写
+2. 当前代码库中 90% 以上的 Element Plus 组件使用单行书写
+3. 用户明确表示使用紧凑代码风格
+
+**🚨 强制执行规则：**
+
+**当检测到单行书写习惯时：**
+
+1. **所有 Element Plus 组件的开始标签和属性必须在一行**
+2. **绝对禁止属性换行** - 无论属性多少都不能换行
+3. **仅结构性标签（如 `<template #suffix>`）可以多行**
+
+**✅ 正确示例（强制）：**
 ```vue
-<!-- 开始标签和所有属性在一行 -->
-<el-table v-loading="listLoading" :data="list" border highlight-current-row @current-change="handleRowClick" max-height="400">
+<!-- 所有属性和开始标签在一行，无论多长 -->
+<el-table v-loading="listLoading" :data="list" border highlight-current-row @current-change="handleRowClick">
 
-<el-cascader v-if="scope.row.val_from === 4" v-model="scope.row.enumCascaderVal" :placeholder="$t('请选择枚举类型')" :disabled="editR" :props="enumCascaderProps" clearable @change="(val: any) => handleChange(val, scope.row)" />
+<el-table-column prop="name" :label="$t('名称')" width="200" min-width="120" fixed="left" sortable>
 
+<el-cascader v-if="scope.row.val_from === 4" v-model="scope.row.enumCascaderVal" :placeholder="$t('请选择枚举类型')" :disabled="editR" :props="enumCascaderProps" clearable @change="handleChange" />
+
+<!-- 有插槽内容时：开始标签仍然单行 -->
 <el-input v-else-if="scope.row.val_from === 3" v-model="scope.row.val" :disabled="editR" :placeholder="$t('表达式')">
   <template #suffix>
-    <el-icon :class="['icon', { 'disabled': editR }]" @click="!editR && openDialog(scope.row)">
+    <el-icon :class="['icon', { 'disabled': editR }]" @click="openDialog">
       <Edit />
     </el-icon>
   </template>
 </el-input>
+
+<el-button type="primary" size="small" :loading="btnLoading" :disabled="btnLoading" @click="handleSubmit">{{ $t('提交') }}</el-button>
 ```
 
-**❌ 错误：属性换行（禁止使用）**
+**❌ 严重错误（绝对禁止）：**
 ```vue
-<!-- 这种多行书写方式在 VitaSage 项目中是错误的 -->
+<!-- ❌ 错误：属性换行 - 这会导致代码审查不通过 -->
 <el-table 
   v-loading="listLoading" 
   :data="list" 
-  border 
-  highlight-current-row
-  @current-change="handleRowClick"
-  max-height="400">
+  border>
 
+<!-- ❌ 错误：每个属性一行 -->
 <el-cascader
-  v-if="scope.row.val_from === 4"
-  v-model="scope.row.enumCascaderVal"
-  :placeholder="$t('请选择枚举类型')"
-  :disabled="editR"
-  :props="enumCascaderProps"
+  v-model="value"
+  :options="options"
   clearable
-  @change="(val: any) => handleChange(val, scope.row)"
 />
+
+<!-- ❌ 错误：开始标签换行 -->
+<el-button 
+  type="primary" 
+  @click="handleClick">
 ```
 
-**规则说明**：
-1. **开始标签和属性必须在同一行** - 无论属性多少
-2. **结构性标签可以多行** - `<template #suffix>` 等包裹结构除外
-3. **自闭合组件** - 如果属性少，整个组件单行；如果有插槽，只要求开始标签单行
-4. **保持一致性** - 整个项目统一使用单行书写风格
+**📋 代码编辑后检查清单（单行书写项目）：**
 
-**原因**：
-1. VitaSage 项目约定俗成的代码风格
-2. 保持代码紧凑，减少文件行数
+每次生成或修改代码后，必须检查：
+- [ ] 所有 `<el-` 开头的组件，开始标签和属性在同一行
+- [ ] 没有属性换行的情况（除 `<template>`、`<div>`、`<span>` 等结构标签）
+- [ ] 代码行数没有不必要增加
+- [ ] 代码紧凑，易于阅读
+
+**原因说明**：
+1. 保持代码紧凑，单个文件不超过 2000 行
+2. 保持团队代码风格一致性
 3. 便于快速浏览和定位代码
 4. 避免格式化工具造成的样式不一致
 
@@ -188,9 +254,9 @@ newString: \`</script>
 </style>\`
 \`\`\`
 
-### 公共样式系统规范（VitaSage 项目）
+### 公共样式系统规范（项目级）
 
-**项目中已定义公共布局样式，必须优先使用这些样式，避免重复定义。**
+**如果项目中已定义公共布局样式，必须优先使用这些样式，避免重复定义。**
 
 #### 常用布局类
 
@@ -347,7 +413,7 @@ const validate = () => {
 }
 \`\`\`
 
-### 表格编辑取消逻辑（VitaSage 项目）
+### 表格编辑取消逻辑（通用模式）
 
 表格编辑采用"编辑-取消-提交"三按钮模式，需维护备份数据用于取消恢复：
 

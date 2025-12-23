@@ -5,6 +5,51 @@
 
 ---
 
+## 🎯 代码格式规范
+
+### 组件属性书写风格
+
+根据项目不同，有两种属性书写风格：
+
+#### 风格 A：单行书写（紧凑风格）
+
+**特征**：开始标签和所有属性必须在同一行
+
+```vue
+<!-- ✅ 单行书写风格 -->
+<el-table v-loading="loading" :data="list" border highlight-current-row>
+<el-button type="primary" :loading="btnLoading" @click="submit">{{ $t('提交') }}</el-button>
+
+<!-- ❌ 在单行书写项目中禁止 -->
+<el-table 
+  v-loading="loading" 
+  :data="list">
+```
+
+**检测方法**：
+- copilot-instructions.md 明确声明使用单行书写风格
+- 或项目中 90% 以上组件使用单行书写
+- 或用户明确要求使用紧凑风格
+
+**强制执行**：检测到单行书写项目时，所有 Element Plus 组件必须遵守单行书写。
+
+#### 风格 B：多行书写（标准风格）
+
+**特征**：每个属性一行，便于阅读
+
+```vue
+<!-- ✅ 多行书写风格 -->
+<el-table
+  v-loading="loading"
+  :data="list"
+  border
+  stripe>
+```
+
+**适用场景**：未明确要求单行书写的项目
+
+---
+
 ## 🎛️ 配置方案选择
 
 本规范支持以下开发习惯配置方案，请根据项目选择：
@@ -14,7 +59,7 @@
 | 方案名称 | 适用场景 | 特点 |
 |---------|---------|------|
 | **标准方案** | 新项目、通用场景 | Element Plus 官方推荐配置 |
-| **VitaSage 方案** | 工业配方系统 | 严格国际化、统一 border 表格 |
+| **严格方案** | 企业级项目、规范要求高 | 强制国际化、统一样式、紧凑代码 |
 | **自定义方案** | 特定项目 | 基于项目自动分析生成 |
 
 ### 🔧 如何选择方案
@@ -25,8 +70,8 @@
 <!-- 在 .github/copilot-instructions.md 中添加 -->
 ## Element Plus 配置方案
 
-使用方案: **VitaSage**  
-<!-- 或使用自定义配置 ID -->
+使用方案: **strict**  
+<!-- 或使用自定义配置 ID: standard / strict / custom-xxx -->
 ```
 
 #### 方式 2: 通过 MCP 工具切换
@@ -35,7 +80,7 @@
 // 调用 MCP 工具
 get_relevant_standards({ 
   imports: ["element-plus"],
-  config: "vitasage"  // 或 "standard", "custom-xxx"
+  config: "strict"  // 或 "standard", "custom-xxx"
 })
 ```
 
@@ -53,8 +98,9 @@ mcp_copilot-promp_analyze_project({
 
 ## 📋 方案对比表
 
-| 配置项 | 标准方案 | VitaSage 方案 | 说明 |
+| 配置项 | 标准方案 | 严格方案 | 说明 |
 |-------|---------|--------------|------|
+| **代码格式** | 多行书写 | 单行书写 | 严格方案: 开始标签+属性单行 |
 | **表格边框** | 可选 | `border` 必须 | 100% 使用 |
 | **表格高亮** | 推荐 | `highlight-current-row` 必须 | 100% 使用 |
 | **弹窗销毁** | 推荐 | `destroy-on-close` 必须 | 95% 使用 |
@@ -104,12 +150,12 @@ mcp_copilot-promp_analyze_project({
 
 ---
 
-### 🔷 方案二：VitaSage 方案
+### 🔷 方案二：严格方案
 
-基于工业配方管理系统的实际使用习惯，强调严格性和一致性。
+基于企业级项目的最佳实践，强调严格性和一致性。
 
 ```yaml
-配置ID: vitasage
+配置ID: strict
 特点:
   - 表格: 必须 border + highlight-current-row (100%)
   - 按钮: 操作列统一 link 样式 (90%)
@@ -122,7 +168,7 @@ mcp_copilot-promp_analyze_project({
 
 **典型代码风格**：
 ```vue
-<!-- ✅ VitaSage 方案标准模板 -->
+<!-- ✅ 严格方案标准模板 -->
 <el-table 
   v-loading="listLoading" 
   :data="list" 
