@@ -599,7 +599,7 @@ mcp-server/
 │   │   ├── matchAgents.ts
 │   │   ├── listAgents.ts
 │   │   └── generateConfig.ts
-│   └── core/                 # 核心逻辑（复用自 VS Code 插件）
+│   └── core/                 # 核心逻辑
 │       ├── smartAgentMatcher.ts
 │       ├── standardsManager.ts  # ⭐Phase 3 增强：缓存+统计
 │       ├── githubClient.ts
@@ -610,16 +610,7 @@ mcp-server/
 │   ├── libraries/
 │   └── patterns/
 └── build/                    # 编译输出
-│       └── types.ts
-└── build/                    # 编译输出
 ```
-
-## 🤝 与 VS Code 插件的关系
-
-- **核心逻辑共享**：MCP 服务器复用了 VS Code 插件的核心代码
-- **互补使用**：
-  - VS Code 插件：UI 友好，适合开发者日常使用
-  - MCP 服务器：AI 原生，适合与 Claude 等 AI 工具对话式交互
 
 ## � 文档
 
@@ -686,5 +677,4 @@ MIT License - 详见 [LICENSE](../LICENSE)
 ## 🔗 相关链接
 
 - [MCP 文档](https://modelcontextprotocol.io)
-- [VS Code 插件](../vscode-extension)
 - [Copilot Prompts 仓库](https://github.com/ForLear/copilot-prompts)

@@ -155,6 +155,23 @@ detect_tech_stack() {
         tech_stack+=("typescript")
     fi
     
+    # 检测微信小程序
+    if [ -f "$project_path/project.config.json" ]; then
+        tech_stack+=("wechat-miniprogram")
+        # 检查是否有云开发
+        if [ -d "$project_path/cloudfunctions" ]; then
+            tech_stack+=("cloud-functions")
+        fi
+    fi
+    
+    # 检测 Flutter
+    if [ -f "$project_path/pubspec.yaml" ]; then
+        tech_stack+=("flutter")
+        if grep -q "flutter:" "$project_path/pubspec.yaml"; then
+            tech_stack+=("dart")
+        fi
+    fi
+    
     echo "${tech_stack[@]}"
 }
 
@@ -395,6 +412,33 @@ EOF
 
 - **规范加载**: `get_relevant_standards({ scenario: "国际化" })`
 - **强制要求**: 所有 UI 文本必须使用 `$t()` 函数，禁止硬编码中文
+
+EOF
+    fi
+    
+    if [[ "$tech_stack" == *"wechat-miniprogram"* ]]; then
+        cat >> "$instructions_file" << 'EOF'
+### 微信小程序
+
+- **规范加载**: `get_relevant_standards({ fileType: "wxml" })` 或 `get_relevant_standards({ fileType: "js", imports: ["wx"] })`
+- **核心要求**: 
+  - 遵循微信小程序开发规范
+  - 使用小程序原生组件和 API
+  - Page/Component 生命周期管理
+  - 云开发最佳实践（如适用）
+
+EOF
+    fi
+    
+    if [[ "$tech_stack" == *"flutter"* ]]; then
+        cat >> "$instructions_file" << 'EOF'
+### Flutter 开发
+
+- **规范加载**: `get_relevant_standards({ fileType: "dart" })`
+- **核心要求**: 
+  - Widget 组件化
+  - 状态管理（Provider/Riverpod/Bloc）
+  - Material Design 或 Cupertino 设计规范
 
 EOF
     fi

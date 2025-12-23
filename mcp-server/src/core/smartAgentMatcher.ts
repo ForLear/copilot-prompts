@@ -83,28 +83,130 @@ export class SmartAgentMatcher {
                 ...packageJson.devDependencies
             };
 
-            // 检测框架
+            // 检测前端框架
             if (allDeps['vue']) features.frameworks!.push('Vue 3');
             if (allDeps['react']) features.frameworks!.push('React');
             if (allDeps['@angular/core']) features.frameworks!.push('Angular');
             if (allDeps['next']) features.frameworks!.push('Next.js');
+            if (allDeps['nuxt']) features.frameworks!.push('Nuxt.js');
+            if (allDeps['svelte']) features.frameworks!.push('Svelte');
+            if (allDeps['solid-js']) features.frameworks!.push('Solid.js');
+            if (allDeps['preact']) features.frameworks!.push('Preact');
+            if (allDeps['remix']) features.frameworks!.push('Remix');
+            if (allDeps['astro']) features.frameworks!.push('Astro');
+            
+            // 检测后端框架
+            if (allDeps['express']) features.frameworks!.push('Express');
+            if (allDeps['koa']) features.frameworks!.push('Koa');
+            if (allDeps['fastify']) features.frameworks!.push('Fastify');
+            if (allDeps['nestjs'] || allDeps['@nestjs/core']) features.frameworks!.push('NestJS');
+            if (allDeps['egg']) features.frameworks!.push('Egg.js');
+            if (allDeps['midway']) features.frameworks!.push('Midway');
+            if (allDeps['hapi']) features.frameworks!.push('Hapi');
+            
+            // 检测全栈框架
+            if (allDeps['meteor']) features.frameworks!.push('Meteor');
+            if (allDeps['blitz']) features.frameworks!.push('Blitz.js');
 
-            // 检测工具
+            // 检测构建工具
             if (allDeps['vite']) features.tools!.push('Vite');
             if (allDeps['webpack']) features.tools!.push('Webpack');
-            if (allDeps['@logicflow/core']) features.tools!.push('LogicFlow');
+            if (allDeps['rollup']) features.tools!.push('Rollup');
+            if (allDeps['parcel']) features.tools!.push('Parcel');
+            if (allDeps['esbuild']) features.tools!.push('ESBuild');
+            if (allDeps['turbopack']) features.tools!.push('Turbopack');
+            
+            // 检测 UI 组件库
             if (allDeps['element-plus']) features.tools!.push('Element Plus');
+            if (allDeps['ant-design-vue']) features.tools!.push('Ant Design Vue');
+            if (allDeps['antd']) features.tools!.push('Ant Design');
+            if (allDeps['@mui/material']) features.tools!.push('Material-UI');
+            if (allDeps['naive-ui']) features.tools!.push('Naive UI');
+            if (allDeps['vuetify']) features.tools!.push('Vuetify');
+            if (allDeps['quasar']) features.tools!.push('Quasar');
+            if (allDeps['primevue']) features.tools!.push('PrimeVue');
+            if (allDeps['chakra-ui']) features.tools!.push('Chakra UI');
+            if (allDeps['@headlessui/react'] || allDeps['@headlessui/vue']) features.tools!.push('Headless UI');
+            if (allDeps['daisyui']) features.tools!.push('DaisyUI');
+            if (allDeps['shadcn-ui'] || allDeps['@shadcn/ui']) features.tools!.push('Shadcn UI');
+            
+            // 检测样式工具
+            if (allDeps['tailwindcss']) features.tools!.push('Tailwind CSS');
+            if (allDeps['sass'] || allDeps['node-sass']) features.tools!.push('Sass');
+            if (allDeps['less']) features.tools!.push('Less');
+            if (allDeps['postcss']) features.tools!.push('PostCSS');
+            if (allDeps['styled-components']) features.tools!.push('Styled Components');
+            if (allDeps['emotion']) features.tools!.push('Emotion');
+            if (allDeps['unocss']) features.tools!.push('UnoCSS');
+            
+            // 检测流程图/可视化库
+            if (allDeps['@logicflow/core']) features.tools!.push('LogicFlow');
+            if (allDeps['echarts']) features.tools!.push('ECharts');
+            if (allDeps['d3']) features.tools!.push('D3.js');
+            if (allDeps['chart.js']) features.tools!.push('Chart.js');
+            if (allDeps['antv'] || allDeps['@antv/g6']) features.tools!.push('AntV');
+            
+            // 检测编程语言
             if (allDeps['typescript']) features.languages!.push('TypeScript');
+            if (packageJson.dependencies?.['react'] || packageJson.devDependencies?.['react']) {
+                features.languages!.push('JavaScript');
+            }
 
-            // 检测特性
-            if (allDeps['vue-i18n'] || allDeps['react-i18n']) features.keywords!.push('i18n');
-            if (allDeps['pinia'] || allDeps['vuex'] || allDeps['redux']) features.keywords!.push('state-management');
-            if (allDeps['vue-router'] || allDeps['react-router']) features.keywords!.push('routing');
-
-            // VS Code 扩展
-            if (packageJson.engines?.vscode) {
-                features.keywords!.push('vscode-extension');
-                features.tools!.push('VS Code Extension API');
+            // 检测国际化
+            if (allDeps['vue-i18n'] || allDeps['react-i18n'] || allDeps['i18next'] || allDeps['react-intl']) {
+                features.keywords!.push('i18n');
+            }
+            
+            // 检测状态管理
+            if (allDeps['pinia'] || allDeps['vuex'] || allDeps['redux'] || allDeps['@reduxjs/toolkit'] ||
+                allDeps['mobx'] || allDeps['zustand'] || allDeps['recoil'] || allDeps['jotai']) {
+                features.keywords!.push('state-management');
+            }
+            
+            // 检测路由
+            if (allDeps['vue-router'] || allDeps['react-router'] || allDeps['react-router-dom'] ||
+                allDeps['@tanstack/react-router']) {
+                features.keywords!.push('routing');
+            }
+            
+            // 检测数据请求
+            if (allDeps['axios'] || allDeps['@tanstack/react-query'] || allDeps['@tanstack/vue-query'] ||
+                allDeps['swr'] || allDeps['urql']) {
+                features.keywords!.push('data-fetching');
+            }
+            
+            // 检测表单处理
+            if (allDeps['formik'] || allDeps['react-hook-form'] || allDeps['vee-validate'] ||
+                allDeps['@vuelidate/core']) {
+                features.keywords!.push('forms');
+            }
+            
+            // 检测测试工具
+            if (allDeps['vitest'] || allDeps['jest'] || allDeps['@testing-library/react'] ||
+                allDeps['@testing-library/vue'] || allDeps['cypress'] || allDeps['playwright']) {
+                features.keywords!.push('testing');
+            }
+            
+            // 检测移动端
+            if (allDeps['vant'] || allDeps['@tarojs/taro'] || allDeps['react-native'] ||
+                allDeps['uni-app'] || allDeps['@nutui/nutui']) {
+                features.keywords!.push('mobile');
+            }
+            
+            // 检测微信小程序
+            if (packageJson.miniprogram || allDeps['@tarojs/taro'] || allDeps['uni-app']) {
+                features.keywords!.push('miniprogram');
+                features.keywords!.push('wechat');
+            }
+            
+            // 检测数据库/ORM
+            if (allDeps['prisma'] || allDeps['typeorm'] || allDeps['sequelize'] || allDeps['mongoose']) {
+                features.keywords!.push('database');
+            }
+            
+            // 检测GraphQL
+            if (allDeps['graphql'] || allDeps['apollo-client'] || allDeps['@apollo/client']) {
+                features.keywords!.push('graphql');
             }
 
         } catch (error) {
@@ -128,15 +230,32 @@ export class SmartAgentMatcher {
         try {
             const content = fs.readFileSync(pubspecPath, 'utf-8');
             
-            // 检测常见的 Flutter 包
+            // 检测状态管理
             if (content.includes('provider:')) features.keywords!.push('state-management');
             if (content.includes('riverpod:')) features.keywords!.push('state-management');
-            if (content.includes('bloc:')) features.keywords!.push('state-management');
-            if (content.includes('get:')) features.keywords!.push('routing', 'state-management');
-            if (content.includes('flutter_localizations:') || content.includes('intl:')) {
+            if (content.includes('bloc:') || content.includes('flutter_bloc:')) features.keywords!.push('state-management');
+            if (content.includes('get:') || content.includes('get_x:')) {
+                features.keywords!.push('routing', 'state-management');
+            }
+            
+            // 检测国际化
+            if (content.includes('flutter_localizations:') || content.includes('intl:') || content.includes('easy_localization:')) {
                 features.keywords!.push('i18n');
             }
-            if (content.includes('go_router:')) features.keywords!.push('routing');
+            
+            // 检测路由
+            if (content.includes('go_router:') || content.includes('auto_route:')) features.keywords!.push('routing');
+            
+            // 检测网络请求
+            if (content.includes('dio:') || content.includes('http:')) features.keywords!.push('data-fetching');
+            
+            // 检测UI库
+            if (content.includes('flutter_screenutil:')) features.tools!.push('ScreenUtil');
+            
+            // 检测测试
+            if (content.includes('flutter_test:') || content.includes('mockito:') || content.includes('integration_test:')) {
+                features.keywords!.push('testing');
+            }
             
         } catch (error) {
             this.log(`解析 pubspec.yaml 失败: ${error}`);
@@ -157,18 +276,49 @@ export class SmartAgentMatcher {
         };
 
         try {
-            const patterns = ['**/*.vue', '**/*.ts', '**/*.tsx', '**/*.jsx', '**/locales/**', '**/stores/**'];
+            const patterns = [
+                '**/*.vue', '**/*.ts', '**/*.tsx', '**/*.jsx', '**/*.js',
+                '**/*.py', '**/*.java', '**/*.go', '**/*.rs', '**/*.cpp', '**/*.c',
+                '**/locales/**', '**/i18n/**', '**/lang/**',
+                '**/stores/**', '**/store/**', '**/redux/**',
+                '**/*.test.*', '**/*.spec.*',
+                '**/components/**', '**/pages/**', '**/views/**'
+            ];
+            
             const files = await glob(patterns, {
                 cwd: rootPath,
-                ignore: ['**/node_modules/**', '**/dist/**', '**/build/**'],
+                ignore: ['**/node_modules/**', '**/dist/**', '**/build/**', '**/.git/**'],
                 onlyFiles: true
             });
 
+            // 检测前端框架
             if (files.some(f => f.endsWith('.vue'))) features.frameworks!.push('Vue');
             if (files.some(f => f.endsWith('.tsx'))) features.frameworks!.push('React');
-            if (files.some(f => f.endsWith('.ts'))) features.languages!.push('TypeScript');
-            if (files.some(f => f.includes('/locales/') || f.includes('/i18n/'))) features.keywords!.push('i18n');
-            if (files.some(f => f.includes('/stores/') || f.includes('/store/'))) features.keywords!.push('state-management');
+            if (files.some(f => f.endsWith('.svelte'))) features.frameworks!.push('Svelte');
+            
+            // 检测编程语言
+            if (files.some(f => f.endsWith('.ts') || f.endsWith('.tsx'))) features.languages!.push('TypeScript');
+            if (files.some(f => f.endsWith('.js') || f.endsWith('.jsx'))) features.languages!.push('JavaScript');
+            if (files.some(f => f.endsWith('.py'))) features.languages!.push('Python');
+            if (files.some(f => f.endsWith('.java'))) features.languages!.push('Java');
+            if (files.some(f => f.endsWith('.go'))) features.languages!.push('Go');
+            if (files.some(f => f.endsWith('.rs'))) features.languages!.push('Rust');
+            if (files.some(f => f.match(/\.(cpp|cc|cxx|c)$/))) features.languages!.push('C/C++');
+            
+            // 检测国际化
+            if (files.some(f => f.includes('/locales/') || f.includes('/i18n/') || f.includes('/lang/'))) {
+                features.keywords!.push('i18n');
+            }
+            
+            // 检测状态管理
+            if (files.some(f => f.includes('/stores/') || f.includes('/store/') || f.includes('/redux/'))) {
+                features.keywords!.push('state-management');
+            }
+            
+            // 检测测试文件
+            if (files.some(f => f.includes('.test.') || f.includes('.spec.'))) {
+                features.keywords!.push('testing');
+            }
 
         } catch (error) {
             this.log(`扫描文件结构失败: ${error}`);
@@ -278,10 +428,21 @@ export class SmartAgentMatcher {
             description,
             tags,
             applicableWhen: {
-                frameworks: tags.filter(t => ['vue', 'vue3', 'react', 'angular'].includes(t.toLowerCase())),
-                languages: tags.filter(t => ['typescript', 'javascript'].includes(t.toLowerCase())),
-                tools: tags.filter(t => ['vite', 'webpack', 'logicflow'].includes(t.toLowerCase())),
-                keywords: tags.filter(t => ['i18n', 'state-management'].includes(t.toLowerCase()))
+                frameworks: tags.filter(t => 
+                    ['vue', 'vue3', 'react', 'angular', 'next', 'nuxt', 'svelte', 'flutter', 
+                     'express', 'nestjs', 'koa', 'fastify'].includes(t.toLowerCase())
+                ),
+                languages: tags.filter(t => 
+                    ['typescript', 'javascript', 'python', 'java', 'go', 'rust', 'dart', 'c++'].includes(t.toLowerCase())
+                ),
+                tools: tags.filter(t => 
+                    ['vite', 'webpack', 'rollup', 'logicflow', 'element-plus', 'antd', 
+                     'tailwind', 'sass', 'echarts', 'prisma', 'graphql'].includes(t.toLowerCase())
+                ),
+                keywords: tags.filter(t => 
+                    ['i18n', 'state-management', 'routing', 'testing', 'mobile', 'miniprogram', 
+                     'database', 'forms', 'data-fetching'].includes(t.toLowerCase())
+                )
             }
         };
     }
@@ -294,11 +455,32 @@ export class SmartAgentMatcher {
     }
 
     private inferProjectType(features: ProjectFeatures): string {
-        if (features.keywords.includes('vscode-extension')) return 'vscode-extension';
+        // 前端框架
         if (features.frameworks.some(f => f.toLowerCase().includes('vue'))) return 'vue3';
         if (features.frameworks.some(f => f.toLowerCase().includes('react'))) return 'react';
         if (features.frameworks.some(f => f.toLowerCase().includes('angular'))) return 'angular';
+        if (features.frameworks.some(f => f.toLowerCase().includes('svelte'))) return 'svelte';
+        if (features.frameworks.some(f => f.toLowerCase().includes('next'))) return 'nextjs';
+        if (features.frameworks.some(f => f.toLowerCase().includes('nuxt'))) return 'nuxtjs';
+        
+        // 移动端/跨平台
+        if (features.frameworks.some(f => f.toLowerCase().includes('flutter'))) return 'flutter';
+        if (features.frameworks.some(f => f.toLowerCase().includes('react-native'))) return 'react-native';
+        if (features.keywords.includes('miniprogram')) return 'miniprogram';
+        
+        // 后端框架
+        if (features.frameworks.some(f => f.toLowerCase().includes('nest'))) return 'nestjs';
+        if (features.frameworks.some(f => f.toLowerCase().includes('express'))) return 'express';
+        if (features.frameworks.some(f => f.toLowerCase().includes('koa'))) return 'koa';
+        if (features.frameworks.some(f => f.toLowerCase().includes('fastify'))) return 'fastify';
+        
+        // 编程语言
         if (features.languages.includes('TypeScript')) return 'typescript';
+        if (features.languages.includes('Python')) return 'python';
+        if (features.languages.includes('Java')) return 'java';
+        if (features.languages.includes('Go')) return 'go';
+        if (features.languages.includes('Rust')) return 'rust';
+        
         return 'general';
     }
 
