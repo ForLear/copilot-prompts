@@ -559,6 +559,12 @@ Element Plus、Ant Design 等 UI 框架的复合组件（如分页器、日期�
 .main_page_scroll .el-select {
   width: 140px;
 }
+
+/* ❌ 设置内部组件宽度会影响分页器、日期选择器等所有使用场景 */
+.el-input__wrapper,
+.el-select__wrapper {
+  min-width: 168px; /* 分页器内部也会被限制宽度！ */
+}
 ```
 
 #### ✅ 正确示例 - 通过父级容器限定
@@ -575,6 +581,15 @@ Element Plus、Ant Design 等 UI 框架的复合组件（如分页器、日期�
   :deep(.el-form-item .el-input) {
     width: 180px;
   }
+}
+
+/* ✅ 内部组件（__wrapper）只设置高度、内边距、背景色等非宽度样式 */
+.el-input__wrapper,
+.el-select__wrapper {
+  min-height: 32px;
+  padding: 6px 10px;
+  background: var(--input-bg);
+  /* ⚠️ 不要设置 width 或 min-width，会影响所有使用场景 */
 }
 ```
 
