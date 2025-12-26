@@ -1,10 +1,11 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { SmartAgentMatcher } from '../core/smartAgentMatcher.js';
+import { I18nDetector } from '../core/i18nDetector.js';
 import { ProjectFeatures, ConsoleLogger } from '../core/types.js';
 
 /**
- * 分析项目工具（Phase 4 增强：支持自动检测）
+ * 分析项目工具（Phase 4 增强：支持自动检测 + 国际化检测）
  */
 export async function analyzeProject(args: { projectPath?: string }): Promise<{
     content: Array<{ type: string; text: string }>;
@@ -45,6 +46,10 @@ export async function analyzeProject(args: { projectPath?: string }): Promise<{
 
         const features = await matcher.analyzeProject(workspaceFolder as any);
 
+        // 检测国际化配置
+        logger.log(`🌍 检测国际化配置...`);
+        const i18nConfig = await I18nDetector.detect(projectPath);
+
         // 返回分析结果
         return {
             content: [{
@@ -61,7 +66,17 @@ export async function analyzeProject(args: { projectPath?: string }): Promise<{
                         tools: features.tools,
                         keywords: features.keywords
                     },
-                    summary: `检测到 ${features.projectType} 项目，使用 ${features.frameworks.join(', ')} 框架`
+                    i18n: {
+                        enabled: i18nConfig.enabled,
+                        type: i18nConfig.type,
+                        configFiles: i18nConfig.configFiles,
+                        messageFiles: i18nConfig.messageFiles,
+                        method: i18nConfig.method,
+                        example: i18nConfig.example,
+                        tips: i18nConfig.tips
+                    },
+                    summary: `检测到 ${features.projectType} 项目，使用 ${features.frameworks.join(', ')} 框架。` +
+                             `国际化：${i18nConfig.enabled ? `已配置 (${i18nConfig.type})` : '未配置'}`
                 }, null, 2)
             }]
         };

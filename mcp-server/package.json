@@ -1,6 +1,6 @@
 {
   "name": "copilot-prompts-mcp-server",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "description": "智能项目分析与编码规范管理 MCP 服务器（v1.3.0: 注释与文档生成规范 + v1.2.0: 底层核心规范强制加载 + v1.1.0: 代码质量保障）",
   "type": "module",
   "main": "build/index.js",

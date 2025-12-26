@@ -1,5 +1,34 @@
 # Copilot Prompts 更新日志
 
+## v1.8.0 (2025-12-26)
+
+### 🌍 重大更新：MCP 工具层国际化自动检测
+
+#### 新增功能
+- **自动国际化检测** (`i18nDetector.ts`):
+  - ✅ 支持 Vue (vue-i18n / 自定义方案)
+  - ✅ 支持 Flutter (flutter_localizations / easy_localization)
+  - ✅ 支持 React (react-i18next / react-intl)
+  - 自动检测配置文件、消息文件、使用方法
+  - 返回格式示例和开发提示
+
+- **增强 `analyze_project` 工具**:
+  - 集成 i18nDetector，自动检测项目国际化配置
+  - 返回结果新增 `i18n` 字段（enabled、type、method、example、tips）
+  - 解决"开发完才发现未国际化"的痛点
+
+#### 优化改进
+- **通用性提升**: 不再依赖项目配置文件，MCP 工具自动检测
+- **跨框架支持**: Vue、Flutter、React 统一处理
+- **智能提示**: 根据检测结果返回针对性的使用建议
+
+#### 测试验证
+- ✅ ht-manage (Vue + 自定义国际化) - 检测成功
+- ✅ my_flutter (Flutter + flutter_localizations) - 检测成功
+- ✅ 返回信息准确，包含使用方法和提示
+
+---
+
 ## v2.2.0 (2025-12-17)
 
 ### 🎉 新增微信小程序支持（含云开发）

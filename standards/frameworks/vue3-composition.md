@@ -7,6 +7,297 @@
 3. **响应式最佳实践** - 正确使用 ref/reactive
 4. **模板规范** - 避免复杂逻辑,禁止内联样式
 5. **组件解耦** - 清晰的 Props/Emits 接口
+6. **国际化优先** - 所有文案必须支持多语言（默认中英双语）
+
+---
+
+## 🌍 国际化规范（强制）
+
+### 检测项目国际化方案
+
+**开发新页面前，必须先检查项目是否已有国际化配置：**
+
+1. **检查国际化文件**：
+   ```bash
+   # 常见位置
+   src/locales/
+   src/i18n/
+   src/lang/
+   
+   # 常见文件
+   messages.ts / messages.js
+   index.ts / index.js
+   zh-CN.ts, en-US.ts
+   ```
+
+2. **检查配置方式**：
+   - **vue-i18n**: 查找 `createI18n()` 配置
+   - **自定义方案**: 查找 `$t` 全局方法注册
+   - **无配置**: 需要先建立国际化体系
+
+### 方案一：vue-i18n（标准方案）
+
+**适用场景**：项目使用 vue-i18n 库
+
+```typescript
+// i18n/index.ts
+import { createI18n } from 'vue-i18n'
+import zhCN from './zh-CN'
+import enUS from './en-US'
+
+export const i18n = createI18n({
+  locale: 'zh-CN',
+  fallbackLocale: 'en-US',
+  messages: {
+    'zh-CN': zhCN,
+    'en-US': enUS
+  }
+})
+
+// main.ts
+app.use(i18n)
+```
+
+```typescript
+// i18n/zh-CN.ts
+export default {
+  common: {
+    confirm: '确定',
+    cancel: '取消',
+    save: '保存',
+    delete: '删除',
+    search: '搜索',
+    reset: '重置'
+  },
+  user: {
+    login: '登录',
+    logout: '退出',
+    username: '用户名',
+    password: '密码'
+  }
+}
+```
+
+```vue
+<template>
+  <!-- ✅ 使用 $t() 函数 -->
+  <el-button @click="handleSave">{{ $t('common.save') }}</el-button>
+  <el-input :placeholder="$t('user.username')" />
+  
+  <!-- ✅ 动态参数 -->
+  <p>{{ $t('message.welcome', { name: userName }) }}</p>
+</template>
+
+<script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
+// 在 script 中使用
+const { t } = useI18n()
+const message = t('common.confirm')
+</script>
+```
+
+### 方案二：自定义国际化（轻量方案）
+
+**适用场景**：项目有自定义的 $t 方法
+
+```typescript
+// locales/messages.ts
+// 索引 0 为英文，索引 1 为中文
+const messages: Record<string, [string, string]> = {
+  确定: ['OK', '确定'],
+  取消: ['Cancel', '取消'],
+  保存: ['Save', '保存'],
+  删除: ['Delete', '删除'],
+  用户名: ['Username', '用户名'],
+  密码: ['Password', '密码'],
+  请输入用户名: ['Please enter username', '请输入用户名'],
+}
+
+export default messages
+```
+
+```typescript
+// locales/locale.ts
+import messages from './messages'
+
+let currentLocale = 1 // 0: en, 1: zh
+
+export const $t = (key: string): string => {
+  const msg = messages[key]
+  if (!msg) {
+    console.warn(`Missing translation: ${key}`)
+    return key
+  }
+  return msg[currentLocale]
+}
+
+export const setLocale = (locale: 'en' | 'zh') => {
+  currentLocale = locale === 'en' ? 0 : 1
+}
+```
+
+```vue
+<template>
+  <!-- ✅ 使用全局 $t() -->
+  <el-button @click="handleSave">{{ $t('保存') }}</el-button>
+  <el-input :placeholder="$t('请输入用户名')" />
+  
+  <!-- ✅ 表单标签 -->
+  <el-form-item :label="$t('用户名')">
+    <el-input v-model="form.username" />
+  </el-form-item>
+</template>
+
+<script setup lang="ts">
+import { getCurrentInstance } from 'vue'
+
+// 获取全局 $t 方法
+const { appContext } = getCurrentInstance()!
+const $t = appContext.config.globalProperties.$t
+</script>
+```
+
+### 国际化最佳实践
+
+#### ✅ 必须国际化的内容
+
+```vue
+<template>
+  <!-- 1. 按钮文字 -->
+  <el-button>{{ $t('新增') }}</el-button>
+  <el-button>{{ $t('查询') }}</el-button>
+  
+  <!-- 2. 表单标签 -->
+  <el-form-item :label="$t('客户名称')">
+  
+  <!-- 3. 占位符 -->
+  <el-input :placeholder="$t('请输入客户名称')" />
+  
+  <!-- 4. 表格列标题 -->
+  <el-table-column :label="$t('订单编号')" />
+  <el-table-column :label="$t('创建时间')" />
+  
+  <!-- 5. 弹窗标题 -->
+  <el-dialog :title="$t('新增客户')">
+  
+  <!-- 6. 提示信息 -->
+  <p>{{ $t('操作成功') }}</p>
+  
+  <!-- 7. 日期选择器 -->
+  <el-date-picker
+    :placeholder="$t('请选择日期')"
+    :start-placeholder="$t('开始日期')"
+    :end-placeholder="$t('结束日期')"
+    :range-separator="$t('至')"
+  />
+  
+  <!-- 8. 下拉选项（通过 computed） -->
+  <el-select>
+    <el-option
+      v-for="item in statusOptions"
+      :key="item.value"
+      :label="item.label"
+    />
+  </el-select>
+</template>
+
+<script setup lang="ts">
+// ✅ 下拉选项国际化
+const statusOptions = computed(() => [
+  { value: 'pending', label: $t('待处理') },
+  { value: 'processing', label: $t('处理中') },
+  { value: 'completed', label: $t('已完成') },
+])
+
+// ✅ 消息提示国际化
+const handleSubmit = () => {
+  ElMessage.success($t('保存成功'))
+  ElMessage.error($t('保存失败'))
+}
+
+// ✅ 确认对话框国际化
+const handleDelete = () => {
+  ElMessageBox.confirm(
+    $t('确认删除该记录吗'),
+    $t('提示'),
+    {
+      confirmButtonText: $t('确定'),
+      cancelButtonText: $t('取消')
+    }
+  )
+}
+
+// ✅ 表单验证规则国际化
+const rules = {
+  username: [
+    { required: true, message: $t('请输入用户名'), trigger: 'blur' }
+  ],
+  password: [
+    { required: true, message: $t('请输入密码'), trigger: 'blur' },
+    { min: 6, message: $t('密码至少6位字符'), trigger: 'blur' }
+  ]
+}
+</script>
+```
+
+#### ❌ 禁止的做法
+
+```vue
+<template>
+  <!-- ❌ 禁止：硬编码中文 -->
+  <el-button>新增</el-button>
+  <el-input placeholder="请输入用户名" />
+  <el-form-item label="客户名称">
+  
+  <!-- ❌ 禁止：部分国际化 -->
+  <el-button>{{ $t('保存') }}</el-button>  ✓
+  <el-button>取消</el-button>  ✗ 遗漏
+</template>
+
+<script setup lang="ts">
+// ❌ 禁止：消息提示未国际化
+ElMessage.success('保存成功')
+
+// ❌ 禁止：验证规则未国际化
+const rules = {
+  username: [
+    { required: true, message: '请输入用户名', trigger: 'blur' }
+  ]
+}
+</script>
+```
+
+### 国际化配置管理
+
+#### 文件组织
+
+```
+src/
+├── locales/           # 或 i18n/, lang/
+│   ├── messages.ts    # 自定义方案：消息配置
+│   ├── locale.ts      # 自定义方案：$t 方法
+│   ├── zh-CN.ts       # vue-i18n：中文
+│   ├── en-US.ts       # vue-i18n：英文
+│   └── index.ts       # vue-i18n：配置入口
+```
+
+#### 添加新文案的步骤
+
+1. **确认分类**：通用、业务模块、页面专用
+2. **添加配置**：
+   ```typescript
+   // 自定义方案
+   新增客户: ['Add Customer', '新增客户'],
+   
+   // vue-i18n
+   customer: {
+     add: '新增客户',
+     edit: '编辑客户'
+   }
+   ```
+3. **使用文案**：`{{ $t('新增客户') }}` 或 `{{ $t('customer.add') }}`
+4. **测试验证**：切换语言检查显示是否正确
 
 ---
 
