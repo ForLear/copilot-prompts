@@ -535,6 +535,8 @@ class HomePage extends StatelessWidget {
 | **SVG 图标未居中** | #8 viewBox 不匹配 | **SVG viewBox 与使用尺寸一致** |
 | **TabBar 选中/未选中布局不符** | #9 两态布局差异 | **从 Sketch 提取精确坐标，分别计算两态布局** |
 | **切换动画不同步** | #9 颜色变化太快 | **使用 TweenAnimationBuilder 同步动画** |
+| **设置属性但无效果** | #10 属性未使用 | **检查属性是否在实际逻辑中被使用** |
+| **图标尺寸与设计稿不符** | #10 提取了外层 Group 尺寸 | **提取内部 Shape/ShapePath 的实际尺寸** |
 
 ### 效率优化：减少对话轮次
 
@@ -549,6 +551,8 @@ class HomePage extends StatelessWidget {
 | 覆盖原有值 | ColorFilter 覆盖 SVG 颜色 | 保留原有值，仅在必要时覆盖 |
 | viewBox 不匹配 | 6x3 放在 12x12 容器用 Center | 直接使用正确 viewBox 的 SVG |
 | 验证不足 | 修改后未与设计稿对比 | 每次修改后对比设计稿 |
+| **属性未使用** | 定义了属性但代码中未引用 | **添加属性后立即验证其被使用** |
+| **图标尺寸错误** | 提取了外层 Group 而非内部 Shape | **查看内部 Shape/ShapePath 尺寸** |
 
 #### 一问一答原则
 
@@ -639,6 +643,97 @@ AnimatedContainer(
   curve: animCurve,
   height: targetHeight,
 )
+```
+
+### 图标尺寸提取规范（重要）
+
+> ⚠️ **常见陷阱**: Sketch 中图标通常有两层结构，必须提取正确的层级
+
+```
+Sketch 图标结构:
+├─ Group "Tab Icon" (22x22)      ← 外层容器，用于布局定位（不是视觉尺寸！）
+│  └─ Shape "Icon_path" (14.67x14.67)  ← 内部实际图形，这才是视觉尺寸
+```
+
+**提取图标内部尺寸的脚本**:
+```javascript
+// 提取图标的内部实际尺寸（而非外层 Group）
+const sketch = require('sketch')
+const document = sketch.getSelectedDocument()
+const page = document.selectedPage
+
+function extractIconInternalSize(frameName) {
+  const frame = sketch.find(`[name="${frameName}"]`, page)[0]
+  if (!frame) return console.log('Frame not found')
+  
+  function traverse(layer, parentY = 0) {
+    const f = layer.frame
+    const absY = parentY + f.y
+    // 只处理 TabBar 区域的图标
+    if (absY > 750 || f.y > 750) {
+      // 打印 Group（外层容器）和内部 Shape（实际图形）
+      if (layer.type === 'Group' && layer.name.includes('Icon')) {
+        console.log(`\n📦 ${layer.name} (外层 Group): ${f.width}x${f.height}`)
+        // 遍历内部，找到 Shape/ShapePath 的实际尺寸
+        layer.layers?.forEach(child => {
+          if (child.type === 'Shape' || child.type === 'ShapePath') {
+            const cf = child.frame
+            console.log(`  └─ ${child.name} (内部图形): ${cf.width.toFixed(1)}x${cf.height.toFixed(1)} ← 使用这个尺寸`)
+          }
+        })
+      }
+    }
+    if (layer.layers) layer.layers.forEach(child => traverse(child, absY))
+  }
+  traverse(frame)
+}
+
+extractIconInternalSize('汇款记录')
+```
+
+**输出示例**:
+```
+📦 Tab Recipient Icon (外层 Group): 22x22
+  └─ Tab Recipient Icon_path_0 (内部图形): 14.7x14.7 ← 使用这个尺寸
+
+📦 Tab Send Icon (外层 Group): 22x22
+  └─ Tab Send Icon_path_0 (内部图形): 17.8x... ← 使用这个尺寸
+```
+
+**Flutter 代码中的使用**:
+```dart
+// 根据 Sketch 内部图形尺寸设置
+AppBottomNavItem(
+  svgPath: 'assets/icons/tabbar/recipient.svg',
+  label: '收款人',
+  unselectedSize: 15.0,  // Sketch 内部图形 14.67，取整或稍大
+),
+AppBottomNavItem(
+  svgPath: 'assets/icons/tabbar/send.svg',
+  label: '去汇款',
+  unselectedSize: 18.0,  // Sketch 内部图形 17.78
+),
+```
+
+### 属性使用验证检查点
+
+> ⚠️ **#10 问题预防**: 定义属性后必须验证其被实际使用
+
+**添加属性后的验证清单**:
+1. [ ] 在组件类中定义了属性
+2. [ ] 在 build 方法中引用了该属性（如 `item.unselectedSize`）
+3. [ ] 属性值影响了最终渲染的 Widget
+4. [ ] 修改属性值后 UI 确实发生变化
+
+**快速验证方法**:
+```bash
+# 搜索属性是否被使用
+grep -n "unselectedSize" lib/widgets/app_bottom_nav_bar.dart
+
+# 期望输出：
+# - class 定义处 (1次)
+# - build 方法中 (至少1次)
+# 如果只出现1次，说明属性未被使用！
 ```
 
 ---
