@@ -412,11 +412,13 @@ await tokenManager.loadFromJson({
 - [ ] 文本颜色使用 `$c.text.xxx`
 - [ ] 背景颜色使用 `$c.background.xxx`
 - [ ] 如有特殊颜色，先添加到 Token 系统
+- [ ] **注意透明度**：设计稿颜色 `#RRGGBBAA` 最后两位是透明度
 
 ### 2. 间距
 - [ ] 使用 `$s.xxx` 获取间距
 - [ ] 非标准间距使用 `$s.px(n)`
 - [ ] 元素间隔使用 `Gap()` 组件
+- [ ] **Row 内使用 `SizedBox(width:)` 或 `Gap.h()`**
 
 ### 3. 排版
 - [ ] 使用 `$t.xxx` 获取文本样式
@@ -433,6 +435,28 @@ await tokenManager.loadFromJson({
 - [ ] 阴影使用 `$shadow.xxx`
 - [ ] 边框使用 `$b.xxx`
 
+### 6. SVG 图标（重要！）
+- [ ] **禁止使用 Material Icons**，必须从设计稿导出 SVG
+- [ ] SVG viewBox 与使用尺寸一致（避免额外居中处理）
+- [ ] **不使用 ColorFilter 覆盖 SVG 颜色**，保留原有样式
+- [ ] 仅在外部明确指定颜色时才覆盖
+
+```dart
+// ❌ 错误 - ColorFilter 覆盖了 SVG 原有颜色和透明度
+SvgPicture.asset(
+  'assets/icons/icon.svg',
+  colorFilter: ColorFilter.mode(someColor, BlendMode.srcIn),
+)
+
+// ✅ 正确 - 保留 SVG 原有样式
+SvgPicture.asset(
+  'assets/icons/icon.svg',
+  width: 12,
+  height: 12,
+  // 不使用 colorFilter，保留 SVG 原有颜色和透明度
+)
+```
+
 ---
 
 ## 🚫 禁止事项
@@ -443,6 +467,9 @@ await tokenManager.loadFromJson({
 4. **禁止** 使用 `SizedBox(width: 16)` 作为间隔（用 `Gap`）
 5. **禁止** 跳过 Token 系统直接访问 `Theme.of(context)`
 6. **禁止** 在单个文件中定义局部样式常量
+7. **禁止** 使用 Material Icons 代替设计稿图标（必须导出 SVG）
+8. **禁止** 使用 ColorFilter 覆盖 SVG 原有颜色（会丢失透明度）
+9. **禁止** 忽略设计稿颜色的透明度（`#RRGGBBAA` 最后两位）
 
 ---
 
@@ -468,4 +495,4 @@ await tokenManager.loadFromJson({
 
 **维护团队**: MTA工作室  
 **适用项目**: my_flutter  
-**最后更新**: 2024-12-24
+**最后更新**: 2026-01-01

@@ -272,7 +272,74 @@ if (layer) {
 }
 ```
 
-然后使用 `CustomPainter` 绘制 SVG Path，而非使用近似图标。
+然后使用 `flutter_svg` 渲染，或使用 `CustomPainter` 绘制 SVG Path。
+
+### SVG 使用规范（重要！）
+
+> ⚠️ **此规范基于实际问题总结，必须严格遵循**
+
+#### 问题案例
+
+| 问题 | 根因 | 正确做法 |
+|------|------|----------|
+| 颜色比设计稿浅 | `ColorFilter` 覆盖了 SVG 原有颜色和透明度 | 不使用 ColorFilter，保留 SVG 原有样式 |
+| 图标未居中 | viewBox 尺寸与容器不匹配，用 Center 包裹 | SVG viewBox 与使用尺寸一致 |
+| 透明度丢失 | 颜色 `#RRGGBBAA` 最后两位是透明度 | 解析完整颜色，包含 alpha 通道 |
+
+#### SVG 导出规范
+
+**导出时保留完整 viewBox 和坐标**：
+
+```javascript
+// ❌ 错误 - 导出最小 viewBox
+// viewBox="0 0 6 3" 放在 12x12 容器中需要额外居中处理
+
+// ✅ 正确 - 导出完整容器 viewBox
+// viewBox="0 0 12 12" 保留元素在容器中的精确位置
+```
+
+#### SVG 使用规范
+
+```dart
+// ❌ 错误 - 强制覆盖颜色
+SvgPicture.asset(
+  'assets/icons/dropdown_arrow.svg',
+  colorFilter: ColorFilter.mode(
+    someColor,           // 覆盖了 SVG 原有颜色
+    BlendMode.srcIn,     // 覆盖了 SVG 原有透明度
+  ),
+)
+
+// ✅ 正确 - 保留 SVG 原有样式
+SvgPicture.asset(
+  'assets/icons/dropdown_arrow.svg',
+  width: 12,
+  height: 12,
+  // 不使用 colorFilter，保留 SVG 原有颜色和透明度
+  // 仅在外部明确指定颜色时才覆盖
+  colorFilter: customColor != null
+      ? ColorFilter.mode(customColor, BlendMode.srcIn)
+      : null,
+)
+```
+
+#### 颜色透明度转换
+
+Sketch 颜色格式：`#RRGGBBAA`（最后两位是透明度）
+
+```
+Sketch: #1c2b45b3 → R:28 G:43 B:69 A:70%
+Flutter: Color(0xB31C2B45) 或 SVG fill-opacity="0.7"
+```
+
+常用透明度对照：
+
+| 百分比 | Hex | 示例 |
+|--------|-----|------|
+| 100% | FF | #FFFFFFFF |
+| 70% | B3 | #1C2B45B3 |
+| 50% | 80 | #00000080 |
+| 15% | 26 | #1C2B4526 |
 
 ### 还原检查清单（强制）
 
@@ -335,15 +402,47 @@ Container(
 
 1. ❌ **禁止假设形状** - 必须从设计稿读取 `cornerRadius`，不能假设是圆形
 2. ❌ **禁止假设颜色** - 必须读取完整的 `fills` 数组，检查 `fillType`
-3. ❌ **禁止使用近似图标** - 必须导出 SVG 并用 `CustomPainter` 绘制
+3. ❌ **禁止使用近似图标** - 必须导出 SVG 并用 `flutter_svg` 或 `CustomPainter` 绘制
 4. ❌ **禁止分散查询** - 必须使用完整提取脚本一次性获取所有属性
 5. ❌ **禁止遗漏阴影参数** - 必须读取 color, x, y, blur, spread 全部 5 个参数
+6. ❌ **禁止忽略透明度** - 颜色 `#RRGGBBAA` 最后两位是透明度，必须解析
+7. ❌ **禁止 ColorFilter 覆盖 SVG** - 除非明确需要改变颜色，否则保留原有样式
 
-### 效率优化：一问一答原则
+### 问题速查表（优先检查）
+
+> ⚠️ **修改代码前，先检查是否属于已知问题类型**
+
+| 问题特征 | 问题 ID | 快速方案 |
+|----------|---------|----------|
+| 半透明容器颜色偏暗 | #1 阴影透出 | `HollowShadowPainter` 挖空阴影 |
+| 元素位置/间距不对 | #2 布局偏移 | 固定宽度 + 精确坐标 |
+| 选中项阴影模糊一片 | #3 裁剪问题 | `clipBehavior: Clip.none` |
+| focus 时出现蓝框 | #4 边框异常 | 全局 + 组件级移除边框 |
+| 形状错误（圆形vs圆角） | #5 shape 冲突 | 检查 `shape` vs `borderRadius` |
+| Row 内 Gap 间距无效 | #6 Gap 方向错误 | `SizedBox(width:)` 或 `Gap.h()` |
+| **SVG 颜色比设计稿浅** | #7 ColorFilter 覆盖 | **移除 ColorFilter，保留 SVG 原有样式** |
+| **SVG 图标未居中** | #8 viewBox 不匹配 | **SVG viewBox 与使用尺寸一致** |
+
+### 效率优化：减少对话轮次
+
+> 基于实际问题总结的效率优化规则
+
+#### 低效原因分析
+
+| 问题类型 | 低效表现 | 正确做法 |
+|----------|----------|----------|
+| 逐属性修改 | 一次只改一个属性，10+ 轮对话 | 批量提取所有样式，一次性修复 |
+| 猜测参数 | 没查 Sketch 就假设值 | 先查 Sketch 再写代码 |
+| 覆盖原有值 | ColorFilter 覆盖 SVG 颜色 | 保留原有值，仅在必要时覆盖 |
+| viewBox 不匹配 | 6x3 放在 12x12 容器用 Center | 直接使用正确 viewBox 的 SVG |
+| 验证不足 | 修改后未与设计稿对比 | 每次修改后对比设计稿 |
+
+#### 一问一答原则
 
 1. **首次提问时**：立即运行完整样式提取脚本 + 图标 SVG 导出
 2. **一次性生成**：基于提取结果直接生成完整的 Flutter 代码
 3. **不做二次确认**：除非用户反馈问题，否则不主动询问
+4. **问题优先检查速查表**：遇到问题先查速查表，避免重复踩坑
 
 ---
 
@@ -840,4 +939,4 @@ void fetchData() async {
 
 **维护团队**: MTA工作室  
 **创建日期**: 2025-12-16  
-**最后更新**: 2025-12-31
+**最后更新**: 2026-01-01

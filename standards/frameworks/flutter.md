@@ -996,6 +996,192 @@ class UserProfile extends StatelessWidget {
 
 ---
 
+## 🎨 Sketch/Figma 设计稿还原规范
+
+> ⚠️ **此章节为强制执行规范** - 所有 UI 还原任务必须严格遵循
+
+### 问题根源分析
+
+过去还原设计稿时存在以下问题导致效率低下：
+
+| 问题 | 表现 | 根因 |
+|------|------|------|
+| 属性读取不完整 | 漏读渐变、圆角、阴影参数 | 只读取部分属性 |
+| 假设而非验证 | 假设圆形/颜色/图标 | 未从设计稿验证 |
+| 使用近似值 | 用 Material Icons 代替 | 未导出原始 SVG |
+| 分散查询 | 多轮对话才获取完整信息 | 每次只查一个属性 |
+
+### 强制执行：一次性完整提取
+
+**在还原任何 UI 元素前，必须一次性提取所有属性（Sketch 示例）：**
+
+```javascript
+// 完整样式提取脚本
+const sketch = require('sketch');
+const page = sketch.getSelectedDocument().selectedPage;
+
+function extractFullStyle(layerName) {
+  const layer = sketch.find(`[name="${layerName}"]`, page)[0];
+  if (!layer) return console.log(`Layer "${layerName}" not found`);
+
+  console.log('=== 基本信息 ===');
+  console.log(`Name: ${layer.name} (${layer.type})`);
+  console.log(`Frame: ${layer.frame.width}x${layer.frame.height}`);
+
+  const style = layer.style;
+
+  // 1. 填充（颜色/渐变）
+  console.log('=== 填充 ===');
+  (style.fills || []).filter(f => f.enabled).forEach((fill, i) => {
+    console.log(`Fill ${i}: Type=${fill.fillType}`);
+    if (fill.fillType === 'Color') {
+      console.log(`  Color: ${fill.color}`);
+    } else if (fill.fillType === 'Gradient') {
+      console.log(`  Gradient: ${fill.gradient.gradientType}`);
+      fill.gradient.stops.forEach((stop, j) => {
+        console.log(`  Stop ${j}: ${stop.color} @ ${stop.position}`);
+      });
+    }
+  });
+
+  // 2. 阴影
+  console.log('=== 阴影 ===');
+  (style.shadows || []).filter(s => s.enabled).forEach((s, i) => {
+    console.log(`Shadow ${i}: Color=${s.color}, Offset=(${s.x}, ${s.y}), Blur=${s.blur}, Spread=${s.spread}`);
+  });
+
+  // 3. 内阴影
+  (style.innerShadows || []).filter(s => s.enabled).forEach((s, i) => {
+    console.log(`InnerShadow ${i}: Color=${s.color}, Offset=(${s.x}, ${s.y}), Blur=${s.blur}, Spread=${s.spread}`);
+  });
+
+  // 4. 边框
+  console.log('=== 边框 ===');
+  (style.borders || []).filter(b => b.enabled).forEach((b, i) => {
+    console.log(`Border ${i}: Color=${b.color}, Width=${b.thickness}`);
+  });
+}
+
+extractFullStyle('Layer Name');
+```
+
+### SVG 图标还原规范
+
+> ⚠️ **禁止使用 Material Icons 或其他近似图标，必须从设计稿导出原始 SVG**
+
+#### SVG 导出规范
+
+**导出时保留完整 viewBox 和坐标**：
+
+```javascript
+// 从 Sketch 导出 SVG
+const sketch = require('sketch');
+const layer = sketch.find('[name="Icon Name"]', sketch.getSelectedDocument().selectedPage)[0];
+if (layer) {
+  sketch.export(layer, { 
+    formats: 'svg', 
+    output: '/path/to/assets/icons/' 
+  });
+}
+```
+
+```xml
+<!-- ❌ 错误 - 导出最小 viewBox -->
+<!-- viewBox="0 0 6 3" 放在 12x12 容器中需要额外居中处理 -->
+
+<!-- ✅ 正确 - 导出完整容器 viewBox -->
+<svg viewBox="0 0 12 12">
+  <!-- 保留元素在容器中的精确位置 -->
+  <polygon fill="#1C2B45" fill-opacity="0.7" points="3.5 5 6 7.5 8.5 5"/>
+</svg>
+```
+
+#### SVG 使用规范
+
+```dart
+// ❌ 错误 - 强制覆盖颜色（会丢失透明度）
+SvgPicture.asset(
+  'assets/icons/dropdown_arrow.svg',
+  colorFilter: ColorFilter.mode(
+    someColor,           // 覆盖了 SVG 原有颜色
+    BlendMode.srcIn,     // 覆盖了 SVG 原有透明度
+  ),
+)
+
+// ✅ 正确 - 保留 SVG 原有样式
+SvgPicture.asset(
+  'assets/icons/dropdown_arrow.svg',
+  width: 12,
+  height: 12,
+  // 不使用 colorFilter，保留 SVG 原有颜色和透明度
+  // 仅在外部明确指定颜色时才覆盖
+  colorFilter: customColor != null
+      ? ColorFilter.mode(customColor, BlendMode.srcIn)
+      : null,
+)
+```
+
+#### 颜色透明度转换
+
+设计稿颜色格式：`#RRGGBBAA`（最后两位是透明度）
+
+```
+Sketch: #1c2b45b3 → R:28 G:43 B:69 A:70%
+Flutter: Color(0xB31C2B45) 或 SVG fill-opacity="0.7"
+```
+
+常用透明度对照：
+
+| 百分比 | Hex | 示例 |
+|--------|-----|------|
+| 100% | FF | #FFFFFFFF |
+| 70% | B3 | #1C2B45B3 |
+| 50% | 80 | #00000080 |
+| 15% | 26 | #1C2B4526 |
+
+### 问题速查表
+
+> ⚠️ **修改代码前，先检查是否属于已知问题类型**
+
+| 问题特征 | 问题 ID | 快速方案 |
+|----------|---------|----------|
+| 半透明容器颜色偏暗 | #1 阴影透出 | `HollowShadowPainter` 挖空阴影 |
+| 元素位置/间距不对 | #2 布局偏移 | 固定宽度 + 精确坐标 |
+| 选中项阴影模糊一片 | #3 裁剪问题 | `clipBehavior: Clip.none` |
+| focus 时出现蓝框 | #4 边框异常 | 全局 + 组件级移除边框 |
+| 形状错误（圆形vs圆角） | #5 shape 冲突 | 检查 `shape` vs `borderRadius` |
+| Row 内 Gap 间距无效 | #6 Gap 方向错误 | `SizedBox(width:)` 或 `Gap.h()` |
+| **SVG 颜色比设计稿浅** | #7 ColorFilter 覆盖 | **移除 ColorFilter，保留 SVG 原有样式** |
+| **SVG 图标未居中** | #8 viewBox 不匹配 | **SVG viewBox 与使用尺寸一致** |
+
+### 还原检查清单
+
+在还原任何 UI 元素前，必须确认以下所有属性：
+
+| 属性 | 检查项 | Flutter 对应 |
+|------|--------|--------------|
+| **尺寸** | width, height | `width`, `height` |
+| **填充类型** | Color / Gradient / Image | `color` / `gradient` / `DecorationImage` |
+| **渐变细节** | stops, from, to, type | `LinearGradient`, `RadialGradient` |
+| **圆角** | cornerRadius (4个角) | `borderRadius` / `BoxShape.circle` |
+| **阴影** | color, x, y, blur, spread | `boxShadow: [BoxShadow(...)]` |
+| **内阴影** | 同上 | 需要特殊处理（Flutter 不原生支持） |
+| **边框** | color, thickness, position | `border: Border.all(...)` |
+| **不透明度** | opacity (颜色末尾两位) | 颜色 alpha 或 `Opacity` widget |
+| **图标** | SVG path, fill color, opacity | `SvgPicture.asset` |
+
+### 禁止事项
+
+1. ❌ **禁止假设形状** - 必须从设计稿读取 `cornerRadius`
+2. ❌ **禁止假设颜色** - 必须读取完整的 `fills` 数组
+3. ❌ **禁止使用近似图标** - 必须导出 SVG
+4. ❌ **禁止分散查询** - 必须一次性获取所有属性
+5. ❌ **禁止遗漏阴影参数** - 必须读取全部 5 个参数
+6. ❌ **禁止忽略透明度** - 颜色 `#RRGGBBAA` 最后两位是透明度
+7. ❌ **禁止 ColorFilter 覆盖 SVG** - 除非明确需要改变颜色
+
+---
+
 **参考资源:**
 - [Flutter Documentation](https://flutter.dev/docs)
 - [Flutter Style Guide](https://github.com/flutter/flutter/blob/main/docs/contributing/Style-guide-for-Flutter-repo.md)
