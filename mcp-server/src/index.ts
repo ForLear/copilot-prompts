@@ -56,7 +56,7 @@ class CopilotPromptsMCPServer {
     
     this.server = new Server(
       {
-        name: 'copilot-prompts-server',
+        name: 'mta',
         version: SERVER_VERSION,
       },
       {

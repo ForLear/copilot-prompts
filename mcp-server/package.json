@@ -5,7 +5,7 @@
   "type": "module",
   "main": "build/index.js",
   "bin": {
-    "copilot-prompts-mcp": "build/index.js"
+    "mta-mcp": "build/index.js"
   },
   "scripts": {
     "build": "tsc",
